@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from typing import Annotated
 
 from app.db.session import get_db
 from app.schemas.usuarios import UsuarioCreate, UsuarioResponse
 from app.services.usuarios import UsuarioService
+from app.api.v1.deps import get_current_user
 
 router = APIRouter()
 
@@ -22,3 +24,7 @@ def criar_usuario(
             detail=str(exc),
         )
 
+
+@router.get("/perfil")
+def perfil(usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)]) -> UsuarioResponse:
+    return usuario_atual
