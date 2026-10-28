@@ -16,3 +16,9 @@ def criar_usuario(db: Session, usuario: Usuario) -> Usuario | None:
     db.commit()
     db.refresh(usuario)
     return usuario
+
+
+def get_usuario_by_email(db: Session, email: str):
+    query = select(Usuario).where(Usuario.email == email)
+    
+    return db.execute(query).scalar_one_or_none()
