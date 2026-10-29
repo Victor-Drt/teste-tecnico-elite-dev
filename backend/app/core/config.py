@@ -10,5 +10,7 @@ class Settings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     DATABASE_URL: str
+    API_EXTERNA_URL: str
+
 
 settings = Settings()
