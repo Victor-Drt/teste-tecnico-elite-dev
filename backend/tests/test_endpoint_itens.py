@@ -1,27 +1,37 @@
+import asyncio
+
 import pytest
 
+from app.models.itens import Item
+from app.schemas.itens import ItensApiExterna
 from app.services.itens import ItemService
 
 
 @pytest.mark.itens
 def test_deve_retornar_lista_de_itens_com_sucesso_quando_autenticado(
-    client, cabecalho_autenticado, monkeypatch
+    client, cabecalho_autenticado, db_session
 ):
     itens = [
         {
-            "id_externo": 123,
+            "id": 1,
             "titulo": "Item de teste",
-            "numero_referencia": "REF-123",
             "data_exibicao": "2026",
             "info_artista": "Artista de teste",
-            "short_description": "Descrição do item",
+            "imagem_id": "img-123",
         }
     ]
-
-    async def listar_itens(self, page: int = 1, limit: int = 10):
-        return itens
-
-    monkeypatch.setattr(ItemService, "listar_itens", listar_itens)
+    db_session.add(
+        Item(
+            id_externo=123,
+            titulo="Item de teste",
+            numero_referencia="REF-123",
+            data_exibicao="2026",
+            info_artista="Artista de teste",
+            descricao="Descrição do item",
+            imagem_id="img-123",
+        )
+    )
+    db_session.commit()
 
     response = client.get(
         "/api/v1/itens/",
@@ -30,6 +40,55 @@ def test_deve_retornar_lista_de_itens_com_sucesso_quando_autenticado(
 
     assert response.status_code == 200
     assert response.json() == itens
+
+
+@pytest.mark.itens
+def test_deve_criar_ou_atualizar_item_sincronizado_sem_duplicar(
+    db_session, monkeypatch
+):
+    respostas_api = [
+        [
+            ItensApiExterna(
+                id=123,
+                title="Item inicial",
+                main_reference_number="REF-123",
+                date_display="2026",
+                artist_display="Artista de teste",
+                short_description="Descrição inicial",
+                image_id="img-123",
+            )
+        ],
+        [
+            ItensApiExterna(
+                id=123,
+                title="Item atualizado",
+                main_reference_number="REF-123",
+                date_display="2026",
+                artist_display="Artista de teste",
+                short_description="Descrição atualizada",
+                image_id="img-456",
+            )
+        ],
+    ]
+
+    async def listar_itens_api_externa(self, page: int = 1, limit: int = 10):
+        return respostas_api.pop(0)
+
+    monkeypatch.setattr(
+        ItemService,
+        "listar_itens_api_externa",
+        listar_itens_api_externa,
+    )
+    service = ItemService(db_session)
+
+    assert asyncio.run(service.sincronizar_itens_api_externa()) == 1
+    assert asyncio.run(service.sincronizar_itens_api_externa()) == 1
+
+    itens = db_session.query(Item).all()
+    assert len(itens) == 1
+    assert itens[0].titulo == "Item atualizado"
+    assert itens[0].descricao == "Descrição atualizada"
+    assert itens[0].imagem_id == "img-456"
 
 
 @pytest.mark.itens

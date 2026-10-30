@@ -27,6 +27,7 @@ os.environ.update(
 @pytest.fixture
 def db_session() -> Iterator[Session]:
     from app.db.base import Base
+    from app.models.itens import Item
     from app.models.usuarios import Usuario
 
     engine = create_engine(
@@ -34,14 +35,20 @@ def db_session() -> Iterator[Session]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(bind=engine, tables=[Usuario.__table__])
+    Base.metadata.create_all(
+        bind=engine,
+        tables=[Usuario.__table__, Item.__table__],
+    )
     session = Session(bind=engine)
 
     try:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=engine)
+        Base.metadata.drop_all(
+            bind=engine,
+            tables=[Usuario.__table__, Item.__table__],
+        )
         engine.dispose()
 
 
