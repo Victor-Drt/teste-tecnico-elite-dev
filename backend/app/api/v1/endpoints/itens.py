@@ -11,14 +11,13 @@ router = APIRouter()
 
 
 @router.get("/")
-async def listar_itens(
+def listar_itens(
     usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
     db: Session = Depends(get_db),
-    page: int = 1,
+    offset: int = 0,
     limit: int = 10,
 ):
     service = ItemService(db)
-
-    itens = await service.listar_itens(page, limit)
+    itens = service.listar_itens(offset, limit)
 
     return itens
