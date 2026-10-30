@@ -116,6 +116,51 @@ def test_deve_buscar_por_titulo_ou_artista(
 
 
 @pytest.mark.itens
+def test_deve_retornar_detalhes_do_item_quando_id_existir(
+    client, cabecalho_autenticado, itens_catalogo_teste
+):
+    item = itens_catalogo_teste[0]
+
+    response = client.get(
+        f"/api/v1/itens/{item.id}",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": item.id,
+        "id_externo": 123,
+        "titulo": "Nenúfares",
+        "data_exibicao": "1916",
+        "info_artista": "Claude Monet",
+        "imagem_id": "img-123",
+        "descricao": "Pintura",
+        "numero_referencia": "REF-123",
+    }
+
+
+@pytest.mark.itens
+def test_deve_retornar_404_quando_item_nao_existir(
+    client, cabecalho_autenticado
+):
+    response = client.get(
+        "/api/v1/itens/99999",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Item não encontrado"
+
+
+@pytest.mark.itens
+def test_deve_retornar_401_ao_buscar_item_sem_autenticacao(client):
+    response = client.get("/api/v1/itens/1")
+
+    assert response.status_code == 401
+    assert "detail" in response.json()
+
+
+@pytest.mark.itens
 def test_deve_criar_ou_atualizar_item_sincronizado_sem_duplicar(
     db_session, monkeypatch
 ):
