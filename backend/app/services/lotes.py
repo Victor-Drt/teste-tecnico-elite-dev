@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.lotes import Lote
-from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteResumo
+from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteResumo, LoteUpdate
 from app.repositories import lotes as repository
 
 
@@ -32,3 +32,22 @@ class LoteService:
         lotes = repository.listar_lotes(self.db, leiloeiro_id, offset, limit)
 
         return [LoteResumo.model_validate(lote) for lote in lotes]
+
+    def atualizar_lote(
+        self, leiloeiro_id: int, lote_id: int, data: LoteUpdate
+    ) -> LoteResumo:
+
+        dados = data.model_dump(exclude_unset=True)
+
+        lote_atualizado = repository.atualizar_lote(
+            db=self.db, 
+            leiloeiro_id=leiloeiro_id,
+            lote_id=lote_id, 
+            lote=dados
+        )
+
+        if lote_atualizado is None:
+            raise ValueError("Lote não encontrado")
+
+        return LoteResumo.model_validate(lote_atualizado)
+

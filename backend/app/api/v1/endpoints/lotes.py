@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 
 from app.schemas.usuarios import UsuarioResponse
-from app.schemas.lotes import LoteCreate, LoteDetalhesResponse
+from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteUpdate
 from app.api.v1.deps import verificar_role
 from app.db.session import get_db
 from app.services.lotes import LoteService
@@ -65,6 +65,31 @@ def listar_lote_por_id(
 
     try:
         return service.buscar_lote_por_id(usuario_atual.id, lote_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+@router.patch("/{lote_id}")
+def atualizar_lote(
+    lote_id: int,
+    data: LoteUpdate,
+    usuario_atual: Annotated[
+        UsuarioResponse,
+        Depends(
+            verificar_role(
+                "leiloeiro",
+            )
+        ),
+    ],
+    db: Session = Depends(get_db),
+):
+    service = LoteService(db)
+
+    try:
+        return service.atualizar_lote(usuario_atual.id, lote_id, data)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

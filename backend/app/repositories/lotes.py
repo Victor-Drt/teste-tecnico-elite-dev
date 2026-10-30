@@ -27,3 +27,23 @@ def listar_lotes(db: Session, leiloeiro_id: int, offset: int, limit: int) -> lis
         .limit(limit)
         .all()
     )
+
+
+def atualizar_lote(
+    db: Session, leiloeiro_id: int, lote_id: int, lote: dict
+) -> Lote | None:
+    lote_existente = (
+        db.query(Lote)
+        .filter(Lote.id == lote_id, Lote.leiloeiro_id == leiloeiro_id)
+        .first()
+    )
+
+    if lote_existente is None:
+        return None
+
+    for key, value in lote.items():
+        setattr(lote_existente, key, value)
+
+    db.commit()
+    db.refresh(lote_existente)
+    return lote_existente

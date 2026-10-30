@@ -12,6 +12,7 @@ class LoteCreate(BaseModel):
     valor_minimo: Decimal
     incremento_minimo: Decimal
 
+
 class LoteResumo(BaseModel):
     id: int
     item_id: int
@@ -29,3 +30,11 @@ class LoteDetalhesResponse(LoteResumo):
     leiloeiro_id: int
     data_criacao: datetime
     data_atualizacao: datetime | None = None
+
+
+class LoteUpdate(BaseModel):
+    item_id: int | None
+    data_inicio: datetime | None
+    data_fim: datetime | None
+    valor_minimo: Decimal | None
+    incremento_minimo: Decimal | None
