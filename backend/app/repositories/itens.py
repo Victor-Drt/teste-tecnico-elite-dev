@@ -19,6 +19,9 @@ def listar_itens(db: Session, offset: int, limit: int, query: str | None) -> lis
 
     return stmt.offset(offset).limit(limit).all()
 
+def buscar_item_por_id(db: Session, item_id: int) -> Item | None:
+    return db.query(Item).filter(Item.id == item_id).one_or_none()
+
 
 def salvar_ou_atualizar_itens(
     db: Session, itens_externos: Sequence[ItensApiExterna]

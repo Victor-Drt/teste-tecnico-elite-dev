@@ -3,7 +3,7 @@ from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.schemas.itens import ItensApiExterna, ItemResumo
+from app.schemas.itens import ItensApiExterna, ItemResumo, ItemDetalhesResponse
 from app.repositories import itens as repository
 
 MAX_API_PAGE_SIZE = 100
@@ -20,6 +20,15 @@ class ItemService:
         itens = repository.listar_itens(self.db, offset, limit, query)
 
         return [ItemResumo.model_validate(item) for item in itens]
+
+    def buscar_item_por_id(self, item_id: int) -> ItemDetalhesResponse:
+        item = repository.buscar_item_por_id(self.db, item_id)
+
+        if item is None:
+            raise ValueError("Item não encontrado")
+
+        return ItemDetalhesResponse.model_validate(item)
+
 
     async def sincronizar_itens_api_externa(
         self, page: int = 1, limit: int = 10

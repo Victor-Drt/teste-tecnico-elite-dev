@@ -19,3 +19,9 @@ class ItemResumo(BaseModel):
     imagem_id: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ItemDetalhesResponse(ItemResumo):
+    id_externo: int
+    descricao: str | None = None
+    numero_referencia: str | None = None
