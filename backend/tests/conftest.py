@@ -28,6 +28,7 @@ os.environ.update(
 def db_session() -> Iterator[Session]:
     from app.db.base import Base
     from app.models.itens import Item
+    from app.models.lotes import Lote
     from app.models.usuarios import Usuario
 
     engine = create_engine(
@@ -37,7 +38,7 @@ def db_session() -> Iterator[Session]:
     )
     Base.metadata.create_all(
         bind=engine,
-        tables=[Usuario.__table__, Item.__table__],
+        tables=[Usuario.__table__, Item.__table__, Lote.__table__],
     )
     session = Session(bind=engine)
 
@@ -47,7 +48,7 @@ def db_session() -> Iterator[Session]:
         session.close()
         Base.metadata.drop_all(
             bind=engine,
-            tables=[Usuario.__table__, Item.__table__],
+            tables=[Usuario.__table__, Item.__table__, Lote.__table__],
         )
         engine.dispose()
 
@@ -144,4 +145,32 @@ def cabecalho_autenticado(usuario_teste) -> dict[str, str]:
         payload, os.environ["SECRET_KEY"], algorithm=os.environ["ALGORITHM"]
     )
 
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def usuario_licitante(db_session: Session):
+    from app.models.usuarios import Usuario
+
+    usuario = Usuario(
+        nome="Licitante de Teste",
+        email="licitante@leilao.com",
+        senha="senha-hash-de-teste",
+        papel="LICITANTE",
+    )
+    db_session.add(usuario)
+    db_session.commit()
+    db_session.refresh(usuario)
+    return usuario
+
+
+@pytest.fixture
+def cabecalho_licitante(usuario_licitante) -> dict[str, str]:
+    tempo_expiracao = datetime.now(timezone.utc) + timedelta(minutes=30)
+    payload = {"sub": usuario_licitante.email, "exp": tempo_expiracao}
+    token = jwt.encode(
+        payload,
+        os.environ["SECRET_KEY"],
+        algorithm=os.environ["ALGORITHM"],
+    )
     return {"Authorization": f"Bearer {token}"}
