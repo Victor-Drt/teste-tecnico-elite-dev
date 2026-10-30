@@ -240,3 +240,66 @@ def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_atualizar_lot
 
     assert response.status_code == 401
     assert "detail" in response.json()
+
+
+@pytest.mark.lotes
+def test_deve_deletar_lote_quando_leiloeiro_tiver_permissao(
+    client,
+    cabecalho_autenticado,
+    lote_teste,
+    usuario_licitante,
+    itens_catalogo_teste,
+    db_session,
+):
+    from datetime import datetime
+
+    leiloeiro_id = lote_teste.leiloeiro_id
+    lote_teste.leiloeiro_id = usuario_licitante.id
+    lote_alvo = Lote(
+        item_id=itens_catalogo_teste[1].id,
+        leiloeiro_id=leiloeiro_id,
+        valor_minimo=200,
+        incremento_minimo=20,
+        data_inicio=datetime(2031, 2, 1, 10),
+        data_fim=datetime(2031, 2, 1, 12),
+    )
+    db_session.add(lote_alvo)
+    db_session.commit()
+    db_session.refresh(lote_alvo)
+
+    response = client.delete(
+        f"/api/v1/lotes/{lote_alvo.id}",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert db_session.query(Lote).filter_by(id=lote_alvo.id).one_or_none() is None
+    assert db_session.query(Lote).filter_by(id=lote_teste.id).one_or_none() is not None
+
+
+@pytest.mark.lotes
+def test_deve_retornar_404_quando_lote_a_deletar_nao_existir(
+    client, cabecalho_autenticado
+):
+    response = client.delete(
+        "/api/v1/lotes/99999",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Lote não encontrado"
+
+
+@pytest.mark.lotes
+def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_deletar_lote(
+    client, cabecalho_licitante, lote_teste, db_session
+):
+    response = client.delete(
+        f"/api/v1/lotes/{lote_teste.id}",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 401
+    assert "detail" in response.json()
+    assert db_session.query(Lote).count() == 1
