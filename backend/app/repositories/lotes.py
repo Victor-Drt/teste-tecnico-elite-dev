@@ -16,3 +16,14 @@ def buscar_lote_por_id(db: Session, leiloeiro_id: int, lote_id: int) -> Lote | N
         .filter(Lote.id == lote_id, Lote.leiloeiro_id == leiloeiro_id)
         .one_or_none()
     )
+
+
+def listar_lotes(db: Session, leiloeiro_id: int, offset: int, limit: int) -> list[Lote]:
+    return (
+        db.query(Lote)
+        .filter(Lote.leiloeiro_id == leiloeiro_id)
+        .order_by(Lote.data_criacao.desc(), Lote.data_inicio.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )

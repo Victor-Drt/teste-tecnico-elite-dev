@@ -29,7 +29,26 @@ def criar_lote(
     return service.criar_lote(usuario_atual.id, data)
 
 
-@router.get("/{lote_id}")
+@router.get("/", status_code=200)
+def listar_lotes(
+    usuario_atual: Annotated[
+        UsuarioResponse,
+        Depends(
+            verificar_role(
+                "leiloeiro",
+            )
+        ),
+    ],
+    db: Session = Depends(get_db),
+    offset: int = 0,
+    limit: int = 10,
+):
+    service = LoteService(db)
+
+    return service.listar_lotes(usuario_atual.id, offset, limit)
+
+
+@router.get("/{lote_id}", status_code=200)
 def listar_lote_por_id(
     lote_id: int,
     usuario_atual: Annotated[
