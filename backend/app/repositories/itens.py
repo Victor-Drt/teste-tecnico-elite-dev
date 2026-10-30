@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -8,8 +8,16 @@ from app.models.itens import Item
 from app.schemas.itens import ItensApiExterna
 
 
-def listar_itens(db: Session, offset: int, limit: int) -> list[Item]:
-    return db.query(Item).offset(offset).limit(limit).all()
+def listar_itens(db: Session, offset: int, limit: int, query: str | None) -> list[Item]:
+
+    stmt = db.query(Item)
+
+    if query:
+        stmt = stmt.filter(
+            or_(Item.titulo.ilike(f"%{query}%"), Item.info_artista.ilike(f"%{query}%"))
+        )
+
+    return stmt.offset(offset).limit(limit).all()
 
 
 def salvar_ou_atualizar_itens(

@@ -17,8 +17,9 @@ def listar_itens(
     db: Session = Depends(get_db),
     offset: int = 0,
     limit: int = 10,
+    query: str | None = None
 ) -> list[ItemResumo]:
     service = ItemService(db)
-    itens = service.listar_itens(offset, limit)
+    itens = service.listar_itens(offset, limit, query)
 
     return itens

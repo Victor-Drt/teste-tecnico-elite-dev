@@ -14,8 +14,10 @@ class ItemService:
     def __init__(self, db: Session):
         self.db = db
 
-    def listar_itens(self, offset: int, limit: int) -> list[ItemResumo]:
-        itens = repository.listar_itens(self.db, offset, limit)
+    def listar_itens(
+        self, offset: int, limit: int, query: str | None
+    ) -> list[ItemResumo]:
+        itens = repository.listar_itens(self.db, offset, limit, query)
 
         return [ItemResumo.model_validate(item) for item in itens]
 
@@ -27,14 +29,9 @@ class ItemService:
 
         while True:
             itens_externos = await self.listar_itens_api_externa(page, limit)
-            total_salvo += repository.salvar_ou_atualizar_itens(
-                self.db, itens_externos
-            )
+            total_salvo += repository.salvar_ou_atualizar_itens(self.db, itens_externos)
 
-            if (
-                len(itens_externos) < limit
-                or page * limit >= MAX_API_SEARCH_RECORDS
-            ):
+            if len(itens_externos) < limit or page * limit >= MAX_API_SEARCH_RECORDS:
                 return total_salvo
 
             page += 1
@@ -72,9 +69,7 @@ class ItemService:
         if page < 1:
             raise ValueError("A página deve ser maior ou igual a 1.")
         if limit < 1 or limit > MAX_API_PAGE_SIZE:
-            raise ValueError(
-                f"O limite deve estar entre 1 e {MAX_API_PAGE_SIZE}."
-            )
+            raise ValueError(f"O limite deve estar entre 1 e {MAX_API_PAGE_SIZE}.")
         if page * limit > MAX_API_SEARCH_RECORDS:
             raise ValueError(
                 "A busca não pode ultrapassar 1.000 registros "
