@@ -6,6 +6,7 @@ from app.schemas.usuarios import UsuarioResponse
 from app.api.v1.deps import get_current_user
 from app.db.session import get_db
 from app.services.itens import ItemService
+from app.schemas.itens import ItemResumo
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ def listar_itens(
     db: Session = Depends(get_db),
     offset: int = 0,
     limit: int = 10,
-):
+) -> list[ItemResumo]:
     service = ItemService(db)
     itens = service.listar_itens(offset, limit)
 

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     DATABASE_URL: str
     API_EXTERNA_URL: str
+    SYNC_ITENS_INTERVAL_SECONDS: int
 
 
 settings = Settings()
