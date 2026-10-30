@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 
 from app.models.lotes import Lote
-from app.schemas.lotes import LoteCreate
-from app.repositories.lotes import criar_lote
+from app.schemas.lotes import LoteCreate, LoteDetalhesResponse
+from app.repositories import lotes as repository
 
 
 class LoteService:
@@ -13,4 +13,12 @@ class LoteService:
 
         lote = Lote(**data.model_dump(), leiloeiro_id=leiloeiro_id)
 
-        return criar_lote(self.db, lote)
+        return repository.criar_lote(self.db, lote)
+
+    def buscar_lote_por_id(self, leiloeiro_id: int, lote_id: int) -> LoteDetalhesResponse:
+        lote = repository.buscar_lote_por_id(self.db, leiloeiro_id, lote_id)
+
+        if lote is None:
+            raise ValueError("Lote não encontrado")
+
+        return LoteDetalhesResponse.model_validate(lote)
