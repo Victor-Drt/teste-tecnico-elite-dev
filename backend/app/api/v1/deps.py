@@ -44,3 +44,23 @@ async def get_current_user(
         email=user_dict.email,
         papel=user_dict.papel,
     )
+
+
+def verificar_role(
+    *roles: str
+):
+    def role_checker(
+        usuario: Annotated[
+            UsuarioResponse,
+            Depends(get_current_user)
+        ]
+    ):
+        if usuario.papel.value not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Você não tem permissão para realizar esta operação."
+            )
+
+        return usuario
+
+    return role_checker

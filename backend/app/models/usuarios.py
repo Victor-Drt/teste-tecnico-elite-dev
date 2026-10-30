@@ -1,5 +1,5 @@
 from sqlalchemy import String, Integer, DateTime, func, Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from enum import Enum
 from datetime import datetime
@@ -24,4 +24,12 @@ class Usuario(Base):
     )
     data_criacao: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=func.now()
+    )
+    lotes_como_leiloeiro: Mapped[list["Lote"]] = relationship(
+        back_populates="leiloeiro",
+        foreign_keys="Lote.leiloeiro_id",
+    )
+    lotes_como_vencedor: Mapped[list["Lote"]] = relationship(
+        back_populates="vencedor",
+        foreign_keys="Lote.vencedor_id",
     )

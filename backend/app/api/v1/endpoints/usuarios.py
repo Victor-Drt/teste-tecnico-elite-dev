@@ -26,5 +26,7 @@ def criar_usuario(
 
 
 @router.get("/perfil", status_code=200)
-def perfil(usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)]) -> UsuarioResponse:
+def perfil(
+    usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
+) -> UsuarioResponse:
     return usuario_atual

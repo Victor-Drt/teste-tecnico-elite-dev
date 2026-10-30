@@ -1,5 +1,5 @@
 from sqlalchemy import Integer, String, func, DateTime, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 
 from app.db.base import Base
@@ -21,3 +21,4 @@ class Item(Base):
     coletado_em: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=func.now()
     )
+    lotes: Mapped[list["Lote"]] = relationship(back_populates="item")
