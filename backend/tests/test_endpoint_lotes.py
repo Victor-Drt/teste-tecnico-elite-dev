@@ -165,3 +165,78 @@ def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_lote(
 
     assert response.status_code == 401
     assert "detail" in response.json()
+
+
+@pytest.mark.lotes
+def test_deve_atualizar_lote_quando_leiloeiro_tiver_permissao(
+    client, cabecalho_autenticado, lote_teste, itens_catalogo_teste, db_session
+):
+    item_atualizado = itens_catalogo_teste[1]
+    payload = {
+        "item_id": item_atualizado.id,
+        "data_inicio": "2031-02-01T10:00:00",
+        "data_fim": "2031-02-01T12:00:00",
+        "valor_minimo": 200.00,
+        "incremento_minimo": 20.00,
+    }
+
+    response = client.patch(
+        f"/api/v1/lotes/{lote_teste.id}",
+        json=payload,
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == lote_teste.id
+    assert response.json()["item_id"] == item_atualizado.id
+    assert response.json()["data_inicio"] == "2031-02-01T10:00:00"
+    assert response.json()["data_fim"] == "2031-02-01T12:00:00"
+
+    db_session.refresh(lote_teste)
+    assert lote_teste.item_id == item_atualizado.id
+    assert lote_teste.valor_minimo == 200.00
+    assert lote_teste.incremento_minimo == 20.00
+
+
+@pytest.mark.lotes
+def test_deve_retornar_404_quando_lote_a_atualizar_nao_existir(
+    client, cabecalho_autenticado, itens_catalogo_teste
+):
+    payload = {
+        "item_id": itens_catalogo_teste[0].id,
+        "data_inicio": "2031-02-01T10:00:00",
+        "data_fim": "2031-02-01T12:00:00",
+        "valor_minimo": 200.00,
+        "incremento_minimo": 20.00,
+    }
+
+    response = client.patch(
+        "/api/v1/lotes/99999",
+        json=payload,
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Lote não encontrado"
+
+
+@pytest.mark.lotes
+def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_atualizar_lote(
+    client, cabecalho_licitante, lote_teste, itens_catalogo_teste
+):
+    payload = {
+        "item_id": itens_catalogo_teste[0].id,
+        "data_inicio": "2031-02-01T10:00:00",
+        "data_fim": "2031-02-01T12:00:00",
+        "valor_minimo": 200.00,
+        "incremento_minimo": 20.00,
+    }
+
+    response = client.patch(
+        f"/api/v1/lotes/{lote_teste.id}",
+        json=payload,
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 401
+    assert "detail" in response.json()
