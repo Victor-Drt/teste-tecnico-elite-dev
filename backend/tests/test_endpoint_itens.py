@@ -92,6 +92,90 @@ def test_deve_criar_ou_atualizar_item_sincronizado_sem_duplicar(
 
 
 @pytest.mark.itens
+def test_deve_sincronizar_todas_as_paginas_da_api_externa(db_session, monkeypatch):
+    paginas_solicitadas = []
+
+    async def listar_itens_api_externa(self, page: int = 1, limit: int = 10):
+        paginas_solicitadas.append(page)
+        quantidade = 10 if page == 1 else 1
+        return [
+            ItensApiExterna(
+                id=(page - 1) * 10 + indice,
+                title=f"Item {page}-{indice}",
+                main_reference_number=f"REF-{page}-{indice}",
+                date_display="2026",
+                artist_display="Artista de teste",
+                short_description="Descrição do item",
+                image_id=f"img-{page}-{indice}",
+            )
+            for indice in range(quantidade)
+        ]
+
+    monkeypatch.setattr(
+        ItemService,
+        "listar_itens_api_externa",
+        listar_itens_api_externa,
+    )
+
+    quantidade = asyncio.run(
+        ItemService(db_session).sincronizar_itens_api_externa()
+    )
+
+    assert paginas_solicitadas == [1, 2]
+    assert quantidade == 11
+    assert db_session.query(Item).count() == 11
+
+
+@pytest.mark.itens
+@pytest.mark.parametrize(
+    ("page", "limit"),
+    [(1, 101), (101, 10), (0, 10), (1, 0)],
+)
+def test_deve_rejeitar_paginacao_fora_dos_limites_da_api_externa(
+    db_session, page, limit
+):
+    with pytest.raises(ValueError):
+        asyncio.run(
+            ItemService(db_session).listar_itens_api_externa(page, limit)
+        )
+
+
+@pytest.mark.itens
+def test_deve_limitar_sincronizacao_a_mil_itens(db_session, monkeypatch):
+    paginas_solicitadas = []
+
+    async def listar_itens_api_externa(self, page: int, limit: int):
+        paginas_solicitadas.append((page, limit))
+        return [
+            ItensApiExterna(
+                id=(page - 1) * limit + indice + 1,
+                title=f"Item {page}-{indice}",
+                main_reference_number=f"REF-{page}-{indice}",
+                date_display="2026",
+                artist_display="Artista de teste",
+                short_description="Descrição do item",
+                image_id=f"img-{page}-{indice}",
+            )
+            for indice in range(limit)
+        ]
+
+    monkeypatch.setattr(
+        ItemService,
+        "listar_itens_api_externa",
+        listar_itens_api_externa,
+    )
+
+    quantidade = asyncio.run(
+        ItemService(db_session).sincronizar_itens_api_externa(limit=100)
+    )
+
+    assert quantidade == 1000
+    assert len(paginas_solicitadas) == 10
+    assert paginas_solicitadas[-1] == (10, 100)
+    assert db_session.query(Item).count() == 1000
+
+
+@pytest.mark.itens
 def test_deve_retornar_falha_quando_nao_autenticado(client):
     response = client.get("/api/v1/itens/")
 
