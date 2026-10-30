@@ -76,6 +76,54 @@ def test_deve_retornar_401_quando_usuario_nao_for_leiloeiro(
 
 
 @pytest.mark.lotes
+def test_deve_retornar_resumos_dos_lotes_quando_leiloeiro_autorizado(
+    client, cabecalho_autenticado, lote_teste
+):
+    response = client.get(
+        "/api/v1/lotes/",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": lote_teste.id,
+            "item_id": lote_teste.item_id,
+            "data_inicio": lote_teste.data_inicio.isoformat(),
+            "data_fim": lote_teste.data_fim.isoformat(),
+            "status": lote_teste.status.value,
+            "vencedor_id": lote_teste.vencedor_id,
+        }
+    ]
+
+
+@pytest.mark.lotes
+def test_deve_retornar_lista_vazia_quando_leiloeiro_nao_tiver_lotes(
+    client, cabecalho_autenticado
+):
+    response = client.get(
+        "/api/v1/lotes/",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.lotes
+def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_listar_lotes(
+    client, cabecalho_licitante
+):
+    response = client.get(
+        "/api/v1/lotes/",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 401
+    assert "detail" in response.json()
+
+
+@pytest.mark.lotes
 def test_deve_retornar_detalhes_do_lote_quando_leiloeiro_autorizado(
     client, cabecalho_autenticado, lote_teste
 ):
