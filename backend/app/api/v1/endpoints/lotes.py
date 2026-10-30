@@ -72,7 +72,7 @@ def listar_lote_por_id(
         ) from exc
 
 
-@router.patch("/{lote_id}")
+@router.patch("/{lote_id}", status_code=200)
 def atualizar_lote(
     lote_id: int,
     data: LoteUpdate,
@@ -90,6 +90,30 @@ def atualizar_lote(
 
     try:
         return service.atualizar_lote(usuario_atual.id, lote_id, data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+@router.delete("/{lote_id}", status_code=204)
+def deletar_lote(
+    lote_id: int,
+    usuario_atual: Annotated[
+        UsuarioResponse,
+        Depends(
+            verificar_role(
+                "leiloeiro",
+            )
+        ),
+    ],
+    db: Session = Depends(get_db),
+):
+    service = LoteService(db)
+
+    try:
+        return service.deletar_lote(usuario_atual.id, lote_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

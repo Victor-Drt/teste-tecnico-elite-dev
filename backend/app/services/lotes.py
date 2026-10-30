@@ -40,10 +40,7 @@ class LoteService:
         dados = data.model_dump(exclude_unset=True)
 
         lote_atualizado = repository.atualizar_lote(
-            db=self.db, 
-            leiloeiro_id=leiloeiro_id,
-            lote_id=lote_id, 
-            lote=dados
+            db=self.db, leiloeiro_id=leiloeiro_id, lote_id=lote_id, lote=dados
         )
 
         if lote_atualizado is None:
@@ -51,3 +48,10 @@ class LoteService:
 
         return LoteResumo.model_validate(lote_atualizado)
 
+    def deletar_lote(self, leiloeiro_id: int, lote_id: int) -> None:
+        lote_deletado = repository.deletar_lote(self.db, leiloeiro_id, lote_id)
+
+        if lote_deletado is None:
+            raise ValueError("Lote não encontrado")
+
+        return lote_deletado

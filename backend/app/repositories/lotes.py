@@ -47,3 +47,17 @@ def atualizar_lote(
     db.commit()
     db.refresh(lote_existente)
     return lote_existente
+
+
+def deletar_lote(db: Session, leiloeiro_id: int, lote_id: int) -> None:
+    lote_existente = (
+        db.query(Lote)
+        .filter(Lote.id == lote_id, Lote.leiloeiro_id == leiloeiro_id)
+        .first()
+    )
+
+    if lote_existente is None:
+        return None
+    db.delete(lote_existente)
+    db.commit()
+    return lote_existente
