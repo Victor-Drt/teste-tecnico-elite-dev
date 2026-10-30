@@ -53,6 +53,44 @@ def db_session() -> Iterator[Session]:
 
 
 @pytest.fixture
+def itens_catalogo_teste(db_session: Session):
+    from app.models.itens import Item
+
+    itens = [
+        Item(
+            id_externo=123,
+            titulo="Nenúfares",
+            numero_referencia="REF-123",
+            data_exibicao="1916",
+            info_artista="Claude Monet",
+            descricao="Pintura",
+            imagem_id="img-123",
+        ),
+        Item(
+            id_externo=456,
+            titulo="A noite estrelada",
+            numero_referencia="REF-456",
+            data_exibicao="1889",
+            info_artista="Vincent van Gogh",
+            descricao="Pintura",
+            imagem_id="img-456",
+        ),
+        Item(
+            id_externo=789,
+            titulo="Estudo de Monet",
+            numero_referencia="REF-789",
+            data_exibicao="2020",
+            info_artista="Artista desconhecido",
+            descricao="Pintura",
+            imagem_id="img-789",
+        ),
+    ]
+    db_session.add_all(itens)
+    db_session.commit()
+    return itens
+
+
+@pytest.fixture
 def client(db_session: Session) -> Iterator[TestClient]:
     from app.api.v1.deps import get_db
     from app.main import app

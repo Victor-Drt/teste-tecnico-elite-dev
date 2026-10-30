@@ -43,6 +43,79 @@ def test_deve_retornar_lista_de_itens_com_sucesso_quando_autenticado(
 
 
 @pytest.mark.itens
+def test_deve_filtrar_itens_por_titulo(
+    client, cabecalho_autenticado, itens_catalogo_teste
+):
+    response = client.get(
+        "/api/v1/itens/?query=Nenúfares",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert [item["titulo"] for item in response.json()] == ["Nenúfares"]
+
+
+@pytest.mark.itens
+def test_deve_filtrar_itens_por_artista(
+    client, cabecalho_autenticado, itens_catalogo_teste
+):
+    response = client.get(
+        "/api/v1/itens/?query=Gogh",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert [item["info_artista"] for item in response.json()] == [
+        "Vincent van Gogh"
+    ]
+
+
+@pytest.mark.itens
+def test_deve_buscar_sem_diferenciar_maiusculas_de_minusculas(
+    client, cabecalho_autenticado, itens_catalogo_teste
+):
+    response = client.get(
+        "/api/v1/itens/?query=MONET",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert {item["titulo"] for item in response.json()} == {
+        "Nenúfares",
+        "Estudo de Monet",
+    }
+
+
+@pytest.mark.itens
+def test_deve_retornar_lista_vazia_quando_nao_houver_correspondencia(
+    client, cabecalho_autenticado, itens_catalogo_teste
+):
+    response = client.get(
+        "/api/v1/itens/?query=ArtistaInexistente",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.itens
+def test_deve_buscar_por_titulo_ou_artista(
+    client, cabecalho_autenticado, itens_catalogo_teste
+):
+    response = client.get(
+        "/api/v1/itens/?query=Monet",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert {item["titulo"] for item in response.json()} == {
+        "Nenúfares",
+        "Estudo de Monet",
+    }
+
+
+@pytest.mark.itens
 def test_deve_criar_ou_atualizar_item_sincronizado_sem_duplicar(
     db_session, monkeypatch
 ):
