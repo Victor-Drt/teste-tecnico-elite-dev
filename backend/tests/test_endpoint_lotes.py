@@ -73,3 +73,47 @@ def test_deve_retornar_401_quando_usuario_nao_for_leiloeiro(
     assert response.status_code == 401
     assert "detail" in response.json()
     assert db_session.query(Lote).count() == 0
+
+
+@pytest.mark.lotes
+def test_deve_retornar_detalhes_do_lote_quando_leiloeiro_autorizado(
+    client, cabecalho_autenticado, lote_teste
+):
+    response = client.get(
+        f"/api/v1/lotes/{lote_teste.id}",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == lote_teste.id
+    assert response.json()["item_id"] == lote_teste.item_id
+    assert response.json()["leiloeiro_id"] == lote_teste.leiloeiro_id
+    assert response.json()["valor_minimo"] == "100.00"
+    assert response.json()["incremento_minimo"] == "10.00"
+    assert response.json()["status"] == "em_breve"
+
+
+@pytest.mark.lotes
+def test_deve_retornar_404_quando_lote_nao_existir(
+    client, cabecalho_autenticado
+):
+    response = client.get(
+        "/api/v1/lotes/99999",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Lote não encontrado"
+
+
+@pytest.mark.lotes
+def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_lote(
+    client, cabecalho_licitante, lote_teste
+):
+    response = client.get(
+        f"/api/v1/lotes/{lote_teste.id}",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 401
+    assert "detail" in response.json()

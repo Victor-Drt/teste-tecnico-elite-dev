@@ -174,3 +174,23 @@ def cabecalho_licitante(usuario_licitante) -> dict[str, str]:
         algorithm=os.environ["ALGORITHM"],
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def lote_teste(db_session: Session, itens_catalogo_teste, usuario_teste):
+    from datetime import datetime
+
+    from app.models.lotes import Lote
+
+    lote = Lote(
+        item_id=itens_catalogo_teste[0].id,
+        leiloeiro_id=usuario_teste.id,
+        valor_minimo=100,
+        incremento_minimo=10,
+        data_inicio=datetime(2030, 1, 1, 10),
+        data_fim=datetime(2030, 1, 1, 12),
+    )
+    db_session.add(lote)
+    db_session.commit()
+    db_session.refresh(lote)
+    return lote
