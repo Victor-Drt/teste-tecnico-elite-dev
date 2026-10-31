@@ -6,7 +6,7 @@ from app.api.v1.deps import get_current_user, verificar_role
 from app.db.session import get_db
 from app.schemas.usuarios import UsuarioResponse
 from app.schemas.lances import LanceResumo, LanceCreate
-from app.services.lances import LanceService 
+from app.services.lances import LanceService
 
 router = APIRouter()
 
@@ -14,7 +14,6 @@ router = APIRouter()
 @router.get("/lotes/{lote_id}", status_code=200)
 def listar_lances(
     lote_id: int,
-    usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
     db: Session = Depends(get_db),
 ) -> list[LanceResumo]:
     service = LanceService(db)
@@ -47,4 +46,10 @@ def criar_lance(
 ) -> LanceResumo:
     service = LanceService(db)
 
-    return service.criar_lance(usuario_atual.id, data)
+    try:
+        return service.criar_lance(usuario_atual, data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc

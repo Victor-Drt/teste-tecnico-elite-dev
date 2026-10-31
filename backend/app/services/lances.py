@@ -1,7 +1,12 @@
 from sqlalchemy.orm import Session
 
-from app.repositories import lances as repository
+from app.repositories import (
+    lances as repository,
+    lotes as lote_repository,
+    carteiras as carteira_repository,
+)
 from app.schemas.lances import LanceResumo, LanceCreate
+from app.schemas.usuarios import UsuarioResponse
 from app.models.lances import Lance
 
 
@@ -24,19 +29,59 @@ class LanceService:
 
         return LanceResumo.model_validate(lance)
 
-    def criar_lance(self, usuario_id: int, lance_data: LanceCreate) -> LanceResumo:
+    def criar_lance(
+        self, usuario: UsuarioResponse, lance_data: LanceCreate
+    ) -> LanceResumo:
 
-        # adicionar regras de negocio
-        # 1. Verificar se o lote existe.
+        # TODO: adicionar regras de negocio
+        # 1. Verificar se o lote existe. FEITO
         # 2. Verificar se está aberto para lances.
-        # 3. Verificar se o usuário pode dar lances.
+        # 3. Verificar se o usuário pode dar lances. (nao pode cobrir o proprio lance)
         # 4. Verificar o valor mínimo permitido.
         # 5. Verificar o saldo disponível, conforme a regra definida para a carteira.
         # 6. Registrar o lance.
         # 7. Notificar os participantes pelo WebSocket após a confirmação da transação.
 
-        lance_obj = Lance(**lance_data.model_dump(), licitante_id=usuario_id)
+        lote = lote_repository.buscar_lote_aberto_por_id(self.db, lance_data.lote_id)
+
+        if lote is None:
+            raise ValueError("Lote não disponivel")
+
+        if usuario.papel.value != "licitante":
+            raise ValueError("Somente licitantes podem fazer um lance")
+
+        if lance_data.valor <= lote.incremento_minimo + lote.valor_atual:
+            raise ValueError(
+                "Lance não pode ser menor do que o valor minimo de um novo lance"
+            )
+
+        maior_lance = max(lote.lances, key=lambda lance: lance.valor, default=None)
+
+        if maior_lance is not None and usuario.id == maior_lance.licitante_id:
+            raise ValueError("Voce não pode cobrir seu proprio Lance")
+
+        carteira = carteira_repository.buscar_carteira_por_usuario_id(
+            self.db, usuario.id
+        )
+
+        if carteira is None:
+            raise ValueError("Carteira não encontrada")
+
+        saldo_disponivel = carteira.saldo_total - carteira.saldo_comprometido
+
+        if lance_data.valor > saldo_disponivel:
+            raise ValueError("Saldo insuficiente para efetuar este lance")
+
+        lote.valor_atual = lance_data.valor
+        lance_obj = Lance(**lance_data.model_dump(), licitante_id=usuario.id)
 
         lance = repository.criar_lance(self.db, lance_obj)
+
+        if lance is None:
+            raise ValueError("Não foi possivel efetuar lance")
+
+        carteira.saldo_comprometido += lance.valor
+
+        carteira_repository.salvar_carteira(self.db, carteira)
 
         return LanceResumo.model_validate(lance)

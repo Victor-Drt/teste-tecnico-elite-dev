@@ -1,0 +1,137 @@
+from decimal import Decimal
+
+import pytest
+
+from app.models.lances import Lance
+
+
+@pytest.mark.lances
+def test_deve_listar_lances_do_lote_sem_autenticacao(
+    client, lote_ao_vivo, usuario_licitante, db_session
+):
+    lance = Lance(
+        licitante_id=usuario_licitante.id,
+        lote_id=lote_ao_vivo.id,
+        valor=120,
+    )
+    db_session.add(lance)
+    db_session.commit()
+
+    response = client.get(f"/api/v1/lances/lotes/{lote_ao_vivo.id}")
+
+    assert response.status_code == 200
+    assert response.json()[0]["id"] == lance.id
+    assert response.json()[0]["valor"] == "120.00"
+
+
+@pytest.mark.lances
+def test_deve_criar_lance_e_comprometer_saldo_quando_dados_validos(
+    client,
+    cabecalho_licitante,
+    lote_ao_vivo,
+    carteira_licitante,
+    usuario_licitante,
+    db_session,
+):
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 120},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["lote_id"] == lote_ao_vivo.id
+    assert response.json()["licitante_id"] == usuario_licitante.id
+    assert response.json()["valor"] == "120.00"
+
+    db_session.refresh(lote_ao_vivo)
+    assert lote_ao_vivo.valor_atual == Decimal("120.00")
+    assert lote_ao_vivo.vencedor_id == usuario_licitante.id
+    db_session.refresh(carteira_licitante)
+    assert carteira_licitante.saldo_comprometido == Decimal("120.00")
+    assert db_session.query(Lance).count() == 1
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_lance_quando_lote_nao_estiver_disponivel(
+    client, cabecalho_licitante, carteira_licitante
+):
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": 99999, "valor": 120},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Lote não disponivel"
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_lance_abaixo_do_incremento_minimo(
+    client, cabecalho_licitante, lote_ao_vivo, carteira_licitante
+):
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 110},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 400
+    assert "valor minimo" in response.json()["detail"]
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_lance_quando_saldo_disponivel_for_insuficiente(
+    client, cabecalho_licitante, lote_ao_vivo, carteira_licitante
+):
+    carteira_licitante.saldo_total = Decimal("100.00")
+
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 120},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Saldo insuficiente para efetuar este lance"
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_lance_se_usuario_tentar_cobrir_o_proprio_lance(
+    client,
+    cabecalho_licitante,
+    lote_ao_vivo,
+    carteira_licitante,
+    usuario_licitante,
+    db_session,
+):
+    db_session.add(
+        Lance(
+            licitante_id=usuario_licitante.id,
+            lote_id=lote_ao_vivo.id,
+            valor=120,
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 140},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 400
+    assert "cobrir seu proprio" in response.json()["detail"]
+
+
+@pytest.mark.lances
+def test_deve_retornar_403_quando_leiloeiro_tentar_criar_lance(
+    client, cabecalho_autenticado, lote_ao_vivo
+):
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 120},
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 403

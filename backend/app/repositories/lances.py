@@ -20,7 +20,7 @@ def buscar_lance_por_id(db: Session, usuario_id: int, lance_id: int) -> Lance | 
     )
 
 
-def criar_lance(db: Session, usuario_id: int, lance: Lance):
+def criar_lance(db: Session, lance: Lance):
     db.add(lance)
     db.commit()
     db.refresh(lance)
