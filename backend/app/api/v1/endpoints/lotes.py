@@ -6,7 +6,7 @@ from app.schemas.usuarios import UsuarioResponse
 from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteUpdate
 from app.api.v1.deps import verificar_role, get_current_user
 from app.db.session import get_db
-from app.services.lotes import LoteService
+from app.services.lotes import LoteRegraNegocioError, LoteService
 
 router = APIRouter()
 
@@ -86,6 +86,11 @@ def atualizar_lote(
 
     try:
         return service.atualizar_lote(usuario_atual.id, lote_id, data)
+    except LoteRegraNegocioError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -110,6 +115,11 @@ def deletar_lote(
 
     try:
         return service.deletar_lote(usuario_atual.id, lote_id)
+    except LoteRegraNegocioError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

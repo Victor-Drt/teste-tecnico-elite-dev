@@ -33,8 +33,9 @@ class LoteDetalhesResponse(LoteResumo):
 
 
 class LoteUpdate(BaseModel):
-    item_id: int | None
-    data_inicio: datetime | None
-    data_fim: datetime | None
-    valor_inicial: Decimal | None
-    incremento_minimo: Decimal | None
+    item_id: int | None = None
+    data_inicio: datetime | None = None
+    data_fim: datetime | None = None
+    valor_inicial: Decimal | None = None
+    incremento_minimo: Decimal | None = None
+    status: StatusLote | None = None

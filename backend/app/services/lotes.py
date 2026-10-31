@@ -1,9 +1,13 @@
 from sqlalchemy.orm import Session
 
-from app.models.lotes import Lote
+from app.models.lotes import Lote, StatusLote
 from app.schemas.usuarios import UsuarioResponse
 from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteResumo, LoteUpdate
 from app.repositories import lotes as repository
+
+
+class LoteRegraNegocioError(Exception):
+    pass
 
 
 class LoteService:
@@ -43,11 +47,18 @@ class LoteService:
     def atualizar_lote(
         self, leiloeiro_id: int, lote_id: int, data: LoteUpdate
     ) -> LoteResumo:
-
-        # TODO: adicionar regra
-        # 1. para cancelar um lote apenas se ele nao tiver recebido lances
-
         dados = data.model_dump(exclude_unset=True)
+
+        if dados.get("status") == StatusLote.CANCELADO:
+            lote = repository.buscar_lote_por_leiloeiro_id(
+                self.db, leiloeiro_id, lote_id
+            )
+            if lote is None:
+                raise ValueError("Lote não encontrado")
+            if lote.lances:
+                raise LoteRegraNegocioError(
+                    "Não é possível cancelar um lote que já recebeu lances"
+                )
 
         lote_atualizado = repository.atualizar_lote(
             db=self.db, leiloeiro_id=leiloeiro_id, lote_id=lote_id, lote=dados
@@ -59,9 +70,19 @@ class LoteService:
         return LoteResumo.model_validate(lote_atualizado)
 
     def deletar_lote(self, leiloeiro_id: int, lote_id: int) -> None:
-
-        # TODO: adicionar regra
-        # 1. lote so pode ser deletado se nao estiver no status 'ao_vivo' e nao tiver lances
+        lote = repository.buscar_lote_por_leiloeiro_id(
+            self.db, leiloeiro_id, lote_id
+        )
+        if lote is None:
+            raise ValueError("Lote não encontrado")
+        if lote.status.value == "ao_vivo":
+            raise LoteRegraNegocioError(
+                "Não é possível excluir um lote que está ao vivo"
+            )
+        if lote.lances:
+            raise LoteRegraNegocioError(
+                "Não é possível excluir um lote que já recebeu lances"
+            )
 
         lote_deletado = repository.deletar_lote(self.db, leiloeiro_id, lote_id)
 

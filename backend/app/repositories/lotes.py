@@ -17,6 +17,17 @@ def buscar_lote_por_id(db: Session, lote_id: int) -> Lote | None:
         .one_or_none()
     )
 
+
+def buscar_lote_por_leiloeiro_id(
+    db: Session, leiloeiro_id: int, lote_id: int
+) -> Lote | None:
+    return (
+        db.query(Lote)
+        .filter(Lote.id == lote_id, Lote.leiloeiro_id == leiloeiro_id)
+        .one_or_none()
+    )
+
+
 def buscar_lote_aberto_por_id(db: Session, lote_id: int) -> Lote | None:
     return (
         db.query(Lote)
@@ -71,11 +82,7 @@ def atualizar_lote(
 
 
 def deletar_lote(db: Session, leiloeiro_id: int, lote_id: int) -> None:
-    lote_existente = (
-        db.query(Lote)
-        .filter(Lote.id == lote_id, Lote.leiloeiro_id == leiloeiro_id)
-        .first()
-    )
+    lote_existente = buscar_lote_por_leiloeiro_id(db, leiloeiro_id, lote_id)
 
     if lote_existente is None:
         return None
