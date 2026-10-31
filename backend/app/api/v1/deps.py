@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -14,7 +14,7 @@ from app.schemas.usuarios import UsuarioResponse
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
-async def get_current_user(
+def validar_usuario(
     token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
 ):
 
@@ -46,19 +46,25 @@ async def get_current_user(
     )
 
 
-def verificar_role(
-    *roles: str
+async def get_current_user(
+    access_token: Annotated[str | None, Cookie()] = None,
+    db: Session = Depends(get_db),
 ):
-    def role_checker(
-        usuario: Annotated[
-            UsuarioResponse,
-            Depends(get_current_user)
-        ]
-    ):
+    if not access_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Não autenticado",
+        )
+
+    return validar_usuario(access_token, db)
+
+
+def verificar_role(*roles: str):
+    def role_checker(usuario: Annotated[UsuarioResponse, Depends(get_current_user)]):
         if usuario.papel.value not in roles:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Você não tem permissão para realizar esta operação."
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem permissão para realizar esta operação.",
             )
 
         return usuario

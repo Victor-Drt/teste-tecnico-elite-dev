@@ -54,3 +54,14 @@ def test_deve_retornar_401_do_usuario_quando_token_nao_estiver_valido(
 
     assert response.status_code == 401
     assert "detail" in response.json()
+
+
+@pytest.mark.usuarios
+def test_deve_retornar_401_quando_cookie_tiver_token_invalido(client):
+    response = client.get(
+        "/api/v1/usuarios/perfil",
+        headers={"Cookie": "access_token=invalid"},
+    )
+
+    assert response.status_code == 401
+    assert "detail" in response.json()

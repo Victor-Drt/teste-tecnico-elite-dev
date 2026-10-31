@@ -159,7 +159,7 @@ def cabecalho_autenticado(usuario_teste) -> dict[str, str]:
         payload, os.environ["SECRET_KEY"], algorithm=os.environ["ALGORITHM"]
     )
 
-    return {"Authorization": f"Bearer {token}"}
+    return {"Cookie": f"access_token={token}"}
 
 
 @pytest.fixture
@@ -187,7 +187,7 @@ def cabecalho_licitante(usuario_licitante) -> dict[str, str]:
         os.environ["SECRET_KEY"],
         algorithm=os.environ["ALGORITHM"],
     )
-    return {"Authorization": f"Bearer {token}"}
+    return {"Cookie": f"access_token={token}"}
 
 
 @pytest.fixture
@@ -199,7 +199,8 @@ def lote_teste(db_session: Session, itens_catalogo_teste, usuario_teste):
     lote = Lote(
         item_id=itens_catalogo_teste[0].id,
         leiloeiro_id=usuario_teste.id,
-        valor_minimo=100,
+        valor_inicial=100,
+        valor_atual=100,
         incremento_minimo=10,
         data_inicio=datetime(2030, 1, 1, 10),
         data_fim=datetime(2030, 1, 1, 12),
@@ -208,3 +209,42 @@ def lote_teste(db_session: Session, itens_catalogo_teste, usuario_teste):
     db_session.commit()
     db_session.refresh(lote)
     return lote
+
+
+@pytest.fixture
+def lote_ao_vivo(db_session: Session, itens_catalogo_teste, usuario_teste):
+    from datetime import datetime
+
+    from app.models.lotes import Lote, StatusLote
+
+    lote = Lote(
+        item_id=itens_catalogo_teste[0].id,
+        leiloeiro_id=usuario_teste.id,
+        valor_inicial=100,
+        valor_atual=100,
+        incremento_minimo=10,
+        status=StatusLote.AO_VIVO,
+        data_inicio=datetime(2030, 1, 1, 10),
+        data_fim=datetime(2030, 1, 1, 12),
+    )
+    db_session.add(lote)
+    db_session.commit()
+    db_session.refresh(lote)
+    return lote
+
+
+@pytest.fixture
+def carteira_licitante(db_session: Session, usuario_licitante):
+    from decimal import Decimal
+
+    from app.models.carteiras import Carteira
+
+    carteira = Carteira(
+        usuario_id=usuario_licitante.id,
+        saldo_total=Decimal("1000.00"),
+        saldo_comprometido=Decimal("0.00"),
+    )
+    db_session.add(carteira)
+    db_session.commit()
+    db_session.refresh(carteira)
+    return carteira
