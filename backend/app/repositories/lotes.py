@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.models.lotes import Lote
+from app.models.lotes import Lote, StatusLote
 
 
 def criar_lote(db: Session, lote: Lote):
@@ -10,18 +10,39 @@ def criar_lote(db: Session, lote: Lote):
     return lote
 
 
-def buscar_lote_por_id(db: Session, leiloeiro_id: int, lote_id: int) -> Lote | None:
+def buscar_lote_por_id(db: Session, lote_id: int) -> Lote | None:
     return (
         db.query(Lote)
-        .filter(Lote.id == lote_id, Lote.leiloeiro_id == leiloeiro_id)
+        .filter(Lote.id == lote_id)
+        .one_or_none()
+    )
+
+def buscar_lote_aberto_por_id(db: Session, lote_id: int) -> Lote | None:
+    return (
+        db.query(Lote)
+        .filter(Lote.id == lote_id, Lote.status == StatusLote.AO_VIVO)
         .one_or_none()
     )
 
 
-def listar_lotes(db: Session, leiloeiro_id: int, offset: int, limit: int) -> list[Lote]:
+
+def listar_lotes_por_leiloeiro(
+    db: Session, leiloeiro_id: int, offset: int, limit: int
+) -> list[Lote]:
     return (
         db.query(Lote)
         .filter(Lote.leiloeiro_id == leiloeiro_id)
+        .order_by(Lote.data_criacao.desc(), Lote.data_inicio.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
+def listar_lotes(db: Session, offset: int, limit: int):
+    return (
+        db.query(Lote)
+        .filter(Lote.status != StatusLote.CANCELADO)
         .order_by(Lote.data_criacao.desc(), Lote.data_inicio.desc())
         .offset(offset)
         .limit(limit)

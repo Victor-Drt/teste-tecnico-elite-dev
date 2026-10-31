@@ -1,6 +1,6 @@
 import pytest
 
-from app.models.lotes import Lote
+from app.models.lotes import Lote, StatusLote
 
 
 @pytest.mark.lotes
@@ -12,7 +12,7 @@ def test_deve_cadastrar_lote_com_sucesso_para_leiloeiro(
         "item_id": item.id,
         "data_inicio": "2030-01-01T10:00:00",
         "data_fim": "2030-01-01T12:00:00",
-        "valor_minimo": 100.00,
+        "valor_inicial": 100.00,
         "incremento_minimo": 10.00,
     }
 
@@ -25,7 +25,8 @@ def test_deve_cadastrar_lote_com_sucesso_para_leiloeiro(
     assert response.status_code == 201
     assert response.json()["item_id"] == item.id
     assert response.json()["leiloeiro_id"] > 0
-    assert response.json()["valor_minimo"] == "100.00"
+    assert response.json()["valor_inicial"] == "100.00"
+    assert db_session.query(Lote).one().valor_atual == 100.00
     assert response.json()["incremento_minimo"] == "10.00"
     assert response.json()["status"] == "em_breve"
 
@@ -42,7 +43,7 @@ def test_deve_retornar_401_ao_cadastrar_lote_sem_autenticacao(
         "item_id": itens_catalogo_teste[0].id,
         "data_inicio": "2030-01-01T10:00:00",
         "data_fim": "2030-01-01T12:00:00",
-        "valor_minimo": 100.00,
+        "valor_inicial": 100.00,
         "incremento_minimo": 10.00,
     }
 
@@ -60,7 +61,7 @@ def test_deve_retornar_401_quando_usuario_nao_for_leiloeiro(
         "item_id": itens_catalogo_teste[0].id,
         "data_inicio": "2030-01-01T10:00:00",
         "data_fim": "2030-01-01T12:00:00",
-        "valor_minimo": 100.00,
+        "valor_inicial": 100.00,
         "incremento_minimo": 10.00,
     }
 
@@ -70,7 +71,7 @@ def test_deve_retornar_401_quando_usuario_nao_for_leiloeiro(
         headers=cabecalho_licitante,
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 403
     assert "detail" in response.json()
     assert db_session.query(Lote).count() == 0
 
@@ -111,16 +112,32 @@ def test_deve_retornar_lista_vazia_quando_leiloeiro_nao_tiver_lotes(
 
 
 @pytest.mark.lotes
-def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_listar_lotes(
-    client, cabecalho_licitante
+def test_licitante_deve_listar_lotes_publicos(
+    client, cabecalho_licitante, lote_teste
 ):
     response = client.get(
         "/api/v1/lotes/",
         headers=cabecalho_licitante,
     )
 
-    assert response.status_code == 401
-    assert "detail" in response.json()
+    assert response.status_code == 200
+    assert [lote["id"] for lote in response.json()] == [lote_teste.id]
+
+
+@pytest.mark.lotes
+def test_licitante_nao_deve_listar_lotes_cancelados(
+    client, cabecalho_licitante, lote_teste, db_session
+):
+    lote_teste.status = StatusLote.CANCELADO
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/lotes/",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 @pytest.mark.lotes
@@ -136,7 +153,7 @@ def test_deve_retornar_detalhes_do_lote_quando_leiloeiro_autorizado(
     assert response.json()["id"] == lote_teste.id
     assert response.json()["item_id"] == lote_teste.item_id
     assert response.json()["leiloeiro_id"] == lote_teste.leiloeiro_id
-    assert response.json()["valor_minimo"] == "100.00"
+    assert response.json()["valor_inicial"] == "100.00"
     assert response.json()["incremento_minimo"] == "10.00"
     assert response.json()["status"] == "em_breve"
 
@@ -163,7 +180,7 @@ def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_lote(
         headers=cabecalho_licitante,
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 403
     assert "detail" in response.json()
 
 
@@ -176,7 +193,7 @@ def test_deve_atualizar_lote_quando_leiloeiro_tiver_permissao(
         "item_id": item_atualizado.id,
         "data_inicio": "2031-02-01T10:00:00",
         "data_fim": "2031-02-01T12:00:00",
-        "valor_minimo": 200.00,
+        "valor_inicial": 200.00,
         "incremento_minimo": 20.00,
     }
 
@@ -194,7 +211,8 @@ def test_deve_atualizar_lote_quando_leiloeiro_tiver_permissao(
 
     db_session.refresh(lote_teste)
     assert lote_teste.item_id == item_atualizado.id
-    assert lote_teste.valor_minimo == 200.00
+    assert lote_teste.valor_inicial == 200.00
+    assert lote_teste.valor_atual == 100.00
     assert lote_teste.incremento_minimo == 20.00
 
 
@@ -206,7 +224,7 @@ def test_deve_retornar_404_quando_lote_a_atualizar_nao_existir(
         "item_id": itens_catalogo_teste[0].id,
         "data_inicio": "2031-02-01T10:00:00",
         "data_fim": "2031-02-01T12:00:00",
-        "valor_minimo": 200.00,
+        "valor_inicial": 200.00,
         "incremento_minimo": 20.00,
     }
 
@@ -228,7 +246,7 @@ def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_atualizar_lot
         "item_id": itens_catalogo_teste[0].id,
         "data_inicio": "2031-02-01T10:00:00",
         "data_fim": "2031-02-01T12:00:00",
-        "valor_minimo": 200.00,
+        "valor_inicial": 200.00,
         "incremento_minimo": 20.00,
     }
 
@@ -238,7 +256,7 @@ def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_atualizar_lot
         headers=cabecalho_licitante,
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 403
     assert "detail" in response.json()
 
 
@@ -258,7 +276,8 @@ def test_deve_deletar_lote_quando_leiloeiro_tiver_permissao(
     lote_alvo = Lote(
         item_id=itens_catalogo_teste[1].id,
         leiloeiro_id=leiloeiro_id,
-        valor_minimo=200,
+        valor_inicial=200,
+        valor_atual=200,
         incremento_minimo=20,
         data_inicio=datetime(2031, 2, 1, 10),
         data_fim=datetime(2031, 2, 1, 12),
@@ -300,6 +319,6 @@ def test_deve_retornar_401_quando_usuario_nao_tiver_permissao_para_deletar_lote(
         headers=cabecalho_licitante,
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 403
     assert "detail" in response.json()
     assert db_session.query(Lote).count() == 1

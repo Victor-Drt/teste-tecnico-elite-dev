@@ -21,7 +21,8 @@ class Lote(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     item_id: Mapped[int] = mapped_column(ForeignKey("itens.id"), nullable=False)
     leiloeiro_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
-    valor_minimo: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    valor_inicial: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    valor_atual: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     incremento_minimo: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     vencedor_id: Mapped[int | None] = mapped_column(
         ForeignKey("usuarios.id"), nullable=True

@@ -4,7 +4,7 @@ from typing import Annotated
 
 from app.schemas.usuarios import UsuarioResponse
 from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteUpdate
-from app.api.v1.deps import verificar_role
+from app.api.v1.deps import verificar_role, get_current_user
 from app.db.session import get_db
 from app.services.lotes import LoteService
 
@@ -33,11 +33,7 @@ def criar_lote(
 def listar_lotes(
     usuario_atual: Annotated[
         UsuarioResponse,
-        Depends(
-            verificar_role(
-                "leiloeiro",
-            )
-        ),
+        Depends(get_current_user),
     ],
     db: Session = Depends(get_db),
     offset: int = 0,
@@ -45,7 +41,7 @@ def listar_lotes(
 ):
     service = LoteService(db)
 
-    return service.listar_lotes(usuario_atual.id, offset, limit)
+    return service.listar_lotes(usuario_atual, offset, limit)
 
 
 @router.get("/{lote_id}", status_code=200)
@@ -64,7 +60,7 @@ def listar_lote_por_id(
     service = LoteService(db)
 
     try:
-        return service.buscar_lote_por_id(usuario_atual.id, lote_id)
+        return service.buscar_lote_por_id(lote_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -119,3 +115,8 @@ def deletar_lote(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
+
+
+# TODO: adicionar endpoint para listar lotes que o usuario venceu
+
+# TODO: adicionar criacao da sala do lote para leilao
