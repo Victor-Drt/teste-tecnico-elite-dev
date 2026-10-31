@@ -27,7 +27,9 @@ os.environ.update(
 @pytest.fixture
 def db_session() -> Iterator[Session]:
     from app.db.base import Base
+    from app.models.carteiras import Carteira
     from app.models.itens import Item
+    from app.models.lances import Lance
     from app.models.lotes import Lote
     from app.models.usuarios import Usuario
 
@@ -38,7 +40,13 @@ def db_session() -> Iterator[Session]:
     )
     Base.metadata.create_all(
         bind=engine,
-        tables=[Usuario.__table__, Item.__table__, Lote.__table__],
+        tables=[
+            Usuario.__table__,
+            Item.__table__,
+            Lote.__table__,
+            Carteira.__table__,
+            Lance.__table__,
+        ],
     )
     session = Session(bind=engine)
 
@@ -48,7 +56,13 @@ def db_session() -> Iterator[Session]:
         session.close()
         Base.metadata.drop_all(
             bind=engine,
-            tables=[Usuario.__table__, Item.__table__, Lote.__table__],
+            tables=[
+                Usuario.__table__,
+                Item.__table__,
+                Lote.__table__,
+                Carteira.__table__,
+                Lance.__table__,
+            ],
         )
         engine.dispose()
 

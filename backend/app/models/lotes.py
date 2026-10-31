@@ -54,3 +54,4 @@ class Lote(Base):
         back_populates="lotes_como_vencedor",
         foreign_keys=[vencedor_id],
     )
+    lances: Mapped[list["Lance"]] = relationship(back_populates="lote")

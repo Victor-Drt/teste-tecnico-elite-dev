@@ -25,6 +25,9 @@ class Usuario(Base):
     data_criacao: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=func.now()
     )
+    carteira: Mapped["Carteira | None"] = relationship(
+        back_populates="usuario",
+    )
     lotes_como_leiloeiro: Mapped[list["Lote"]] = relationship(
         back_populates="leiloeiro",
         foreign_keys="Lote.leiloeiro_id",
@@ -33,3 +36,4 @@ class Usuario(Base):
         back_populates="vencedor",
         foreign_keys="Lote.vencedor_id",
     )
+    lances: Mapped[list["Lance"]] = relationship(back_populates="licitante")
