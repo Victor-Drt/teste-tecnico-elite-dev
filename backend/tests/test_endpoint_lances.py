@@ -46,10 +46,46 @@ def test_deve_criar_lance_e_comprometer_saldo_quando_dados_validos(
 
     db_session.refresh(lote_ao_vivo)
     assert lote_ao_vivo.valor_atual == Decimal("120.00")
-    assert lote_ao_vivo.vencedor_id == usuario_licitante.id
+    assert lote_ao_vivo.vencedor_id is None
     db_session.refresh(carteira_licitante)
     assert carteira_licitante.saldo_comprometido == Decimal("120.00")
     assert db_session.query(Lance).count() == 1
+
+
+@pytest.mark.lances
+def test_deve_liberar_saldo_do_lance_superado_e_comprometer_o_novo(
+    client,
+    cabecalho_outro_licitante,
+    lote_ao_vivo,
+    carteira_licitante,
+    carteira_outro_licitante,
+    usuario_licitante,
+    db_session,
+):
+    lance_anterior = Lance(
+        licitante_id=usuario_licitante.id,
+        lote_id=lote_ao_vivo.id,
+        valor=120,
+    )
+    lote_ao_vivo.valor_atual = Decimal("120.00")
+    carteira_licitante.saldo_comprometido = Decimal("120.00")
+    db_session.add(lance_anterior)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 131},
+        headers=cabecalho_outro_licitante,
+    )
+
+    assert response.status_code == 201
+    db_session.refresh(carteira_licitante)
+    db_session.refresh(carteira_outro_licitante)
+    db_session.refresh(lote_ao_vivo)
+    assert carteira_licitante.saldo_comprometido == Decimal("0.00")
+    assert carteira_outro_licitante.saldo_comprometido == Decimal("131.00")
+    assert lote_ao_vivo.valor_atual == Decimal("131.00")
+    assert lote_ao_vivo.vencedor_id is None
 
 
 @pytest.mark.lances

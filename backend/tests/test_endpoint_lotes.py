@@ -1,5 +1,6 @@
 import pytest
 
+from app.models.lances import Lance
 from app.models.lotes import Lote, StatusLote
 
 
@@ -217,6 +218,50 @@ def test_deve_atualizar_lote_quando_leiloeiro_tiver_permissao(
 
 
 @pytest.mark.lotes
+def test_nao_deve_cancelar_lote_que_ja_recebeu_lances(
+    client,
+    cabecalho_autenticado,
+    lote_teste,
+    usuario_licitante,
+    db_session,
+):
+    db_session.add(
+        Lance(
+            licitante_id=usuario_licitante.id,
+            lote_id=lote_teste.id,
+            valor=120,
+        )
+    )
+    db_session.commit()
+
+    response = client.patch(
+        f"/api/v1/lotes/{lote_teste.id}",
+        json={"status": "cancelado"},
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 409
+    assert "já recebeu lances" in response.json()["detail"]
+    db_session.refresh(lote_teste)
+    assert lote_teste.status != StatusLote.CANCELADO
+
+
+@pytest.mark.lotes
+def test_deve_cancelar_lote_sem_lances(
+    client, cabecalho_autenticado, lote_teste, db_session
+):
+    response = client.patch(
+        f"/api/v1/lotes/{lote_teste.id}",
+        json={"status": "cancelado"},
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 200
+    db_session.refresh(lote_teste)
+    assert lote_teste.status == StatusLote.CANCELADO
+
+
+@pytest.mark.lotes
 def test_deve_retornar_404_quando_lote_a_atualizar_nao_existir(
     client, cabecalho_autenticado, itens_catalogo_teste
 ):
@@ -294,6 +339,47 @@ def test_deve_deletar_lote_quando_leiloeiro_tiver_permissao(
     assert response.status_code == 204
     assert response.content == b""
     assert db_session.query(Lote).filter_by(id=lote_alvo.id).one_or_none() is None
+    assert db_session.query(Lote).filter_by(id=lote_teste.id).one_or_none() is not None
+
+
+@pytest.mark.lotes
+def test_nao_deve_deletar_lote_ao_vivo(
+    client, cabecalho_autenticado, lote_ao_vivo, db_session
+):
+    response = client.delete(
+        f"/api/v1/lotes/{lote_ao_vivo.id}",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 409
+    assert "ao vivo" in response.json()["detail"]
+    assert db_session.query(Lote).filter_by(id=lote_ao_vivo.id).one_or_none() is not None
+
+
+@pytest.mark.lotes
+def test_nao_deve_deletar_lote_que_ja_recebeu_lances(
+    client,
+    cabecalho_autenticado,
+    lote_teste,
+    usuario_licitante,
+    db_session,
+):
+    db_session.add(
+        Lance(
+            licitante_id=usuario_licitante.id,
+            lote_id=lote_teste.id,
+            valor=120,
+        )
+    )
+    db_session.commit()
+
+    response = client.delete(
+        f"/api/v1/lotes/{lote_teste.id}",
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 409
+    assert "já recebeu lances" in response.json()["detail"]
     assert db_session.query(Lote).filter_by(id=lote_teste.id).one_or_none() is not None
 
 

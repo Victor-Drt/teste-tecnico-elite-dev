@@ -179,9 +179,37 @@ def usuario_licitante(db_session: Session):
 
 
 @pytest.fixture
+def outro_usuario_licitante(db_session: Session):
+    from app.models.usuarios import Usuario
+
+    usuario = Usuario(
+        nome="Outro Licitante",
+        email="outro.licitante@leilao.com",
+        senha="senha-hash-de-teste",
+        papel="LICITANTE",
+    )
+    db_session.add(usuario)
+    db_session.commit()
+    db_session.refresh(usuario)
+    return usuario
+
+
+@pytest.fixture
 def cabecalho_licitante(usuario_licitante) -> dict[str, str]:
     tempo_expiracao = datetime.now(timezone.utc) + timedelta(minutes=30)
     payload = {"sub": usuario_licitante.email, "exp": tempo_expiracao}
+    token = jwt.encode(
+        payload,
+        os.environ["SECRET_KEY"],
+        algorithm=os.environ["ALGORITHM"],
+    )
+    return {"Cookie": f"access_token={token}"}
+
+
+@pytest.fixture
+def cabecalho_outro_licitante(outro_usuario_licitante) -> dict[str, str]:
+    tempo_expiracao = datetime.now(timezone.utc) + timedelta(minutes=30)
+    payload = {"sub": outro_usuario_licitante.email, "exp": tempo_expiracao}
     token = jwt.encode(
         payload,
         os.environ["SECRET_KEY"],
@@ -241,6 +269,23 @@ def carteira_licitante(db_session: Session, usuario_licitante):
 
     carteira = Carteira(
         usuario_id=usuario_licitante.id,
+        saldo_total=Decimal("1000.00"),
+        saldo_comprometido=Decimal("0.00"),
+    )
+    db_session.add(carteira)
+    db_session.commit()
+    db_session.refresh(carteira)
+    return carteira
+
+
+@pytest.fixture
+def carteira_outro_licitante(db_session: Session, outro_usuario_licitante):
+    from decimal import Decimal
+
+    from app.models.carteiras import Carteira
+
+    carteira = Carteira(
+        usuario_id=outro_usuario_licitante.id,
         saldo_total=Decimal("1000.00"),
         saldo_comprometido=Decimal("0.00"),
     )
