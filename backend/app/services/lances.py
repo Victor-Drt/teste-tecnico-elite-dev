@@ -33,15 +33,6 @@ class LanceService:
         self, usuario: UsuarioResponse, lance_data: LanceCreate
     ) -> LanceResumo:
 
-        # TODO: adicionar regras de negocio
-        # 1. Verificar se o lote existe. FEITO
-        # 2. Verificar se está aberto para lances.
-        # 3. Verificar se o usuário pode dar lances. (nao pode cobrir o proprio lance)
-        # 4. Verificar o valor mínimo permitido.
-        # 5. Verificar o saldo disponível, conforme a regra definida para a carteira.
-        # 6. Registrar o lance.
-        # 7. Notificar os participantes pelo WebSocket após a confirmação da transação.
-
         lote = lote_repository.buscar_lote_aberto_por_id(self.db, lance_data.lote_id)
 
         if lote is None:
@@ -72,6 +63,17 @@ class LanceService:
         if lance_data.valor > saldo_disponivel:
             raise ValueError("Saldo insuficiente para efetuar este lance")
 
+        carteira_lance_anterior = None
+        if maior_lance is not None:
+            carteira_lance_anterior = carteira_repository.buscar_carteira_por_usuario_id(
+                self.db, maior_lance.licitante_id
+            )
+            if carteira_lance_anterior is None:
+                raise ValueError("Carteira do licitante anterior não encontrada")
+
+        if carteira_lance_anterior is not None:
+            carteira_lance_anterior.saldo_comprometido -= maior_lance.valor
+
         lote.valor_atual = lance_data.valor
         lance_obj = Lance(**lance_data.model_dump(), licitante_id=usuario.id)
 
@@ -82,6 +84,7 @@ class LanceService:
 
         carteira.saldo_comprometido += lance.valor
 
-        carteira_repository.salvar_carteira(self.db, carteira)
+        self.db.commit()
+        self.db.refresh(lance)
 
         return LanceResumo.model_validate(lance)
