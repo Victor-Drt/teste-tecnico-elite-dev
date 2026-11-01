@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     API_EXTERNA_URL: str
     SYNC_ITENS_INTERVAL_SECONDS: int
+    FRONTEND_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
 
 
 settings = Settings()
