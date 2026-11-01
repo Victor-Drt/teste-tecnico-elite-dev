@@ -18,6 +18,7 @@ class LoteResumo(BaseModel):
     item_id: int
     data_inicio: datetime
     data_fim: datetime
+    valor_atual: Decimal
     status: StatusLote
     vencedor_id: int | None = None
 
