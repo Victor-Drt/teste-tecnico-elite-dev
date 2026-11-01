@@ -1,14 +1,39 @@
+import axios from "axios";
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import heroLoginIllustration from "../../assets/login-page-woman.svg";
 import "./styles.css";
 import { IoEyeOutline, IoEyeSharp } from "react-icons/io5";
+import { login } from "../../services/auth";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await login(email, password);
+      navigate("/", { replace: true });
+    } catch (error) {
+      if (axios.isAxiosError<{ detail?: string }>(error)) {
+        setErrorMessage(
+          error.response?.data?.detail ??
+            "Não foi possível conectar ao serviço. Tente novamente.",
+        );
+      } else {
+        setErrorMessage("Ocorreu um erro inesperado ao entrar.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -51,6 +76,7 @@ const LoginPage = () => {
                 placeholder="seuemail@exemplo.com"
                 required
                 type="email"
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
@@ -64,6 +90,7 @@ const LoginPage = () => {
                   placeholder="Digite sua senha"
                   required
                   type={isPasswordVisible ? "text" : "password"}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   aria-label={
@@ -79,8 +106,18 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <button className="login-submit" type="submit">
-              Entrar
+            {errorMessage && (
+              <p className="login-error" role="alert">
+                {errorMessage}
+              </p>
+            )}
+
+            <button
+              className="login-submit"
+              disabled={isSubmitting}
+              type="submit"
+            >
+              {isSubmitting ? "Entrando..." : "Entrar"}
             </button>
           </form>
 
