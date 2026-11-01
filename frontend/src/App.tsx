@@ -1,6 +1,8 @@
+import HomePage from "./pages/HomePage"
+
 function App() {
   return <main>
-    <h1>Olá mundo!</h1>
+    <HomePage />
   </main>
 }
 
