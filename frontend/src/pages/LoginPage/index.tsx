@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import heroLoginIllustration from "../../assets/login-page-woman.svg";
 import "./styles.css";
+import { IoEyeOutline, IoEyeSharp } from "react-icons/io5";
 
 const LoginPage = () => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -73,33 +74,7 @@ const LoginPage = () => {
                   onClick={() => setIsPasswordVisible((visible) => !visible)}
                   type="button"
                 >
-                  {isPasswordVisible ? (
-                    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-                      <path
-                        d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A10.7 10.7 0 0112 5c5.5 0 9 7 9 7a15.7 15.7 0 01-3.1 3.8M6.2 6.2C3.9 7.7 3 12 3 12s3.5 7 9 7a9.7 9.7 0 004.1-.9"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.8"
-                      />
-                    </svg>
-                  ) : (
-                    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-                      <path
-                        d="M3 12s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7z"
-                        stroke="currentColor"
-                        strokeLinejoin="round"
-                        strokeWidth="1.8"
-                      />
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="2.5"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                      />
-                    </svg>
-                  )}
+                  {isPasswordVisible ? <IoEyeSharp /> : <IoEyeOutline />}
                 </button>
               </div>
             </div>
@@ -110,7 +85,7 @@ const LoginPage = () => {
           </form>
 
           <p className="login-signup">
-            Você é novo por aqui? <Link to="/register">Crie uma Conta</Link>
+            Você é novo por aqui? <Link to="/cadastro">Crie uma Conta</Link>
           </p>
         </div>
       </section>

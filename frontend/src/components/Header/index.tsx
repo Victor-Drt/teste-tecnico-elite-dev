@@ -1,12 +1,25 @@
 import "./style.css";
+import { Link } from "react-router";
 
-const Header = () => {
+interface HeaderProps {
+  buttonText: string;
+  onButtonClicked: () => void;
+}
+
+const Header = ({ buttonText, onButtonClicked }: HeaderProps) => {
   return (
     <header className="site-header">
-      <a className="brand-name" href="#" aria-label="LeilõesEliteDev - página inicial">
+      <Link
+        to="/"
+        className="brand-name"
+        aria-label="LeilõesEliteDev - página inicial"
+      >
         LeilõesEliteDev
-      </a>
-      <button className="login-button" type="button">Entrar</button>
+      </Link>
+
+      <button className="login-button" type="button" onClick={onButtonClicked}>
+        {buttonText}
+      </button>
     </header>
   );
 };

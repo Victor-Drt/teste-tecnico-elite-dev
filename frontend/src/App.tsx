@@ -1,9 +1,24 @@
-import HomePage from "./pages/HomePage"
+import HomePage from "./pages/HomePage";
+import { BrowserRouter, Route, Routes } from "react-router";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 
-function App() {
-  return <main>
-    <HomePage />
-  </main>
+function AppShell() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/cadastro" element={<RegisterPage />} />
+    </Routes>
+  );
 }
 
-export default App
+function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
+    </BrowserRouter>
+  );
+}
+
+export default App;
