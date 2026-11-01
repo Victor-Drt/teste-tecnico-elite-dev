@@ -31,6 +31,13 @@ class LoteService:
 
         return LoteDetalhesResponse.model_validate(lote)
 
+    def buscar_lote_ao_vivo(self, lote_id: int) -> LoteDetalhesResponse:
+        lote = repository.buscar_lote_aberto_por_id(self.db, lote_id)
+        if lote is None:
+            raise ValueError("Lote não encontrado ou não está ao vivo")
+
+        return LoteDetalhesResponse.model_validate(lote)
+
     def listar_lotes(
         self, usuario: UsuarioResponse, offset: int, limit: int
     ) -> list[LoteResumo]:

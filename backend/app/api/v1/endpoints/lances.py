@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.schemas.usuarios import UsuarioResponse
 from app.schemas.lances import LanceResumo, LanceCreate
 from app.services.lances import LanceService
+from app.api.v1.websockets.leiloes import notificar_lance_criado
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ def buscar_lance(
 
 
 @router.post("/", status_code=201)
-def criar_lance(
+async def criar_lance(
     data: LanceCreate,
     usuario_atual: Annotated[UsuarioResponse, Depends(verificar_role("licitante"))],
     db: Session = Depends(get_db),
@@ -47,7 +48,9 @@ def criar_lance(
     service = LanceService(db)
 
     try:
-        return service.criar_lance(usuario_atual, data)
+        lance = service.criar_lance(usuario_atual, data)
+        await notificar_lance_criado(lance, db)
+        return lance
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

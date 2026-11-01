@@ -5,6 +5,7 @@ from app.api.v1.endpoints.itens import router as item_router
 from app.api.v1.endpoints.lotes import router as lote_router
 from app.api.v1.endpoints.lances import router as lance_router
 from app.api.v1.endpoints.carteiras import router as carteira_router
+from app.api.v1.websockets.leiloes import router as leilao_websocket_router
 
 api_router = APIRouter()
 
@@ -15,3 +16,4 @@ api_router.include_router(item_router, prefix="/itens", tags=["Item"])
 api_router.include_router(lote_router, prefix="/lotes", tags=["Lote"])
 api_router.include_router(lance_router, prefix="/lances", tags=["Lance"])
 api_router.include_router(carteira_router, prefix="/carteiras", tags=["Carteira"])
+api_router.include_router(leilao_websocket_router, prefix="/ws")

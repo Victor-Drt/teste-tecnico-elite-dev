@@ -138,6 +138,3 @@ def deletar_lote(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
-
-
-# TODO: adicionar criacao da sala do lote para leilao
