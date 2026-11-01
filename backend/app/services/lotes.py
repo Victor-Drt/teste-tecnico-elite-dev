@@ -70,9 +70,7 @@ class LoteService:
         return LoteResumo.model_validate(lote_atualizado)
 
     def deletar_lote(self, leiloeiro_id: int, lote_id: int) -> None:
-        lote = repository.buscar_lote_por_leiloeiro_id(
-            self.db, leiloeiro_id, lote_id
-        )
+        lote = repository.buscar_lote_por_leiloeiro_id(self.db, leiloeiro_id, lote_id)
         if lote is None:
             raise ValueError("Lote não encontrado")
         if lote.status.value == "ao_vivo":
@@ -90,3 +88,7 @@ class LoteService:
             raise ValueError("Lote não encontrado")
 
         return lote_deletado
+
+    def buscar_lotes_arrematados(self, vencedor_id: int) -> list[LoteResumo]:
+        lotes = repository.listar_lotes_arrematados(self.db, vencedor_id)
+        return [LoteResumo.model_validate(lote) for lote in lotes]

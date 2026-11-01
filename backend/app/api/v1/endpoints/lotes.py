@@ -44,6 +44,19 @@ def listar_lotes(
     return service.listar_lotes(usuario_atual, offset, limit)
 
 
+@router.get("/arremates", status_code=200)
+def listar_arremates(
+    usuario_atual: Annotated[
+        UsuarioResponse,
+        Depends(get_current_user),
+    ],
+    db: Session = Depends(get_db),
+):
+    service = LoteService(db)
+
+    return service.buscar_lotes_arrematados(usuario_atual.id)
+
+
 @router.get("/{lote_id}", status_code=200)
 def listar_lote_por_id(
     lote_id: int,
@@ -126,7 +139,5 @@ def deletar_lote(
             detail=str(exc),
         ) from exc
 
-
-# TODO: adicionar endpoint para listar lotes que o usuario venceu
 
 # TODO: adicionar criacao da sala do lote para leilao

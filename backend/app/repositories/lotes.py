@@ -61,6 +61,18 @@ def listar_lotes(db: Session, offset: int, limit: int):
     )
 
 
+def listar_lotes_arrematados(db: Session, vencedor_id: int) -> list[Lote]:
+    return (
+        db.query(Lote)
+        .filter(
+            Lote.status == StatusLote.CONCLUIDO,
+            Lote.vencedor_id == vencedor_id,
+        )
+        .order_by(Lote.data_fim.desc(), Lote.data_atualizacao.desc())
+        .all()
+    )
+
+
 def atualizar_lote(
     db: Session, leiloeiro_id: int, lote_id: int, lote: dict
 ) -> Lote | None:
