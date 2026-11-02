@@ -1,14 +1,42 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 
 from app.schemas.usuarios import UsuarioResponse
 from app.api.v1.deps import get_current_user
 from app.db.session import get_db
-from app.services.itens import ItemService
+from app.services.itens import ImagemExternaError, ItemService
 from app.schemas.itens import ItemResumo, ItemDetalhesResponse
 
 router = APIRouter()
+
+
+@router.get("/{item_id}/imagem", response_class=Response)
+async def obter_imagem_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+) -> Response:
+    service = ItemService(db)
+
+    try:
+        image_content, media_type = await service.buscar_imagem(item_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except (httpx.HTTPError, ImagemExternaError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Não foi possível carregar a imagem do provedor externo.",
+        ) from exc
+
+    return Response(
+        content=image_content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
 
 
 @router.get("/", status_code=200)

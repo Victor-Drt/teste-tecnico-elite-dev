@@ -1,6 +1,7 @@
 import httpx
 from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
+from urllib.parse import quote
 
 from app.core.config import settings
 from app.schemas.itens import ItensApiExterna, ItemResumo, ItemDetalhesResponse
@@ -8,6 +9,11 @@ from app.repositories import itens as repository
 
 MAX_API_PAGE_SIZE = 100
 MAX_API_SEARCH_RECORDS = 1000
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+
+
+class ImagemExternaError(Exception):
+    pass
 
 
 class ItemService:
@@ -29,6 +35,54 @@ class ItemService:
 
         return ItemDetalhesResponse.model_validate(item)
 
+    async def buscar_imagem(self, item_id: int) -> tuple[bytes, str]:
+        item = repository.buscar_item_por_id(self.db, item_id)
+        if item is None:
+            raise ValueError("Item não encontrado")
+
+        image_id = quote(item.imagem_id, safe="")
+        image_url = (
+            f"https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg"
+        )
+        headers = {
+            "User-Agent": "LeiloesEliteDev/1.0",
+            "AIC-USER-AGENT": "LeiloesEliteDev/1.0",
+            "Accept": "*/*",
+        }
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            async with client.stream("GET", image_url, headers=headers) as response:
+                response.raise_for_status()
+                media_type = response.headers.get("content-type", "").split(";")[0]
+                if media_type.lower() != "image/jpeg":
+                    raise ImagemExternaError(
+                        "O provedor retornou um tipo de conteúdo inválido."
+                    )
+
+                content_length = response.headers.get("content-length")
+                if content_length:
+                    try:
+                        declared_size = int(content_length)
+                    except ValueError as exc:
+                        raise ImagemExternaError(
+                            "O provedor retornou um tamanho de imagem inválido."
+                        ) from exc
+                    if declared_size > MAX_IMAGE_SIZE_BYTES:
+                        raise ImagemExternaError(
+                            "A imagem excede o tamanho permitido."
+                        )
+
+                image_chunks: list[bytes] = []
+                image_size = 0
+                async for chunk in response.aiter_bytes():
+                    image_size += len(chunk)
+                    if image_size > MAX_IMAGE_SIZE_BYTES:
+                        raise ImagemExternaError(
+                            "A imagem excede o tamanho permitido."
+                        )
+                    image_chunks.append(chunk)
+
+        return b"".join(image_chunks), "image/jpeg"
 
     async def sincronizar_itens_api_externa(
         self, page: int = 1, limit: int = 10

@@ -1,5 +1,6 @@
 import asyncio
 
+import httpx
 import pytest
 
 from app.models.itens import Item
@@ -164,6 +165,87 @@ def test_deve_retornar_401_ao_buscar_item_sem_autenticacao(client):
 
     assert response.status_code == 401
     assert "detail" in response.json()
+
+
+@pytest.mark.itens
+def test_deve_servir_imagem_do_item_sem_autenticacao(
+    client, itens_catalogo_teste, monkeypatch
+):
+    async def buscar_imagem(self, item_id: int) -> tuple[bytes, str]:
+        assert item_id == itens_catalogo_teste[0].id
+        return b"conteudo-da-imagem", "image/jpeg"
+
+    monkeypatch.setattr(ItemService, "buscar_imagem", buscar_imagem)
+
+    response = client.get(
+        f"/api/v1/itens/{itens_catalogo_teste[0].id}/imagem"
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"conteudo-da-imagem"
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.headers["cache-control"] == "private, max-age=3600"
+
+
+@pytest.mark.itens
+def test_deve_retornar_404_quando_imagem_do_item_nao_existir(client):
+    response = client.get("/api/v1/itens/99999/imagem")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.itens
+def test_deve_retornar_502_quando_provedor_de_imagem_falhar(
+    client, itens_catalogo_teste, monkeypatch
+):
+    async def buscar_imagem(self, item_id: int) -> tuple[bytes, str]:
+        raise httpx.ConnectError("Falha de conexão")
+
+    monkeypatch.setattr(ItemService, "buscar_imagem", buscar_imagem)
+
+    response = client.get(
+        f"/api/v1/itens/{itens_catalogo_teste[0].id}/imagem"
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == (
+        "Não foi possível carregar a imagem do provedor externo."
+    )
+
+
+@pytest.mark.itens
+def test_deve_buscar_imagem_com_cabecalhos_exigidos_pelo_provedor(
+    itens_catalogo_teste, db_session, monkeypatch
+):
+    async_client = httpx.AsyncClient
+
+    def verificar_requisicao(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith(
+            "/img-123/full/843,/0/default.jpg"
+        )
+        assert request.headers["user-agent"] == "LeiloesEliteDev/1.0"
+        assert request.headers["aic-user-agent"] == "LeiloesEliteDev/1.0"
+        assert request.headers["accept"] == "*/*"
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/jpeg"},
+            content=b"conteudo-da-imagem",
+        )
+
+    def criar_cliente(*, timeout: float) -> httpx.AsyncClient:
+        return async_client(
+            transport=httpx.MockTransport(verificar_requisicao),
+            timeout=timeout,
+        )
+
+    monkeypatch.setattr("app.services.itens.httpx.AsyncClient", criar_cliente)
+
+    image, media_type = asyncio.run(
+        ItemService(db_session).buscar_imagem(itens_catalogo_teste[0].id)
+    )
+
+    assert image == b"conteudo-da-imagem"
+    assert media_type == "image/jpeg"
 
 
 @pytest.mark.itens
