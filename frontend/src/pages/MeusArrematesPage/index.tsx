@@ -5,6 +5,7 @@ import {
   IoArrowForward,
   IoChevronForward,
   IoClose,
+  IoShareSocialOutline,
 } from "react-icons/io5";
 import { fetchHistoricoLances, fetchMeusLances } from "../../services/lances";
 import { getItemImageUrl } from "../../services/itens";
@@ -76,6 +77,10 @@ const MeusArrematesPage = () => {
   const [isHistoryLoadingMore, setIsHistoryLoadingMore] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyReloadKey, setHistoryReloadKey] = useState(0);
+  const [shareFeedback, setShareFeedback] = useState<{
+    loteId: number;
+    message: string;
+  } | null>(null);
 
   const closeHistory = () => {
     selectedBidRef.current = null;
@@ -207,6 +212,40 @@ const MeusArrematesPage = () => {
     setHistoryError("");
     setIsHistoryLoading(true);
     setHistoryReloadKey((key) => key + 1);
+  };
+
+  const shareAudit = async (loteId: number) => {
+    const url = new URL(`/auditoria/${loteId}`, window.location.origin).toString();
+    setShareFeedback(null);
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Auditoria pública do lote #${loteId}`,
+          text: "Confira os dados públicos do leilão.",
+          url,
+        });
+        setShareFeedback({ loteId, message: "Auditoria compartilhada." });
+        return;
+      }
+
+      await navigator.clipboard.writeText(url);
+      setShareFeedback({ loteId, message: "Link da auditoria copiado." });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareFeedback({ loteId, message: "Link da auditoria copiado." });
+      } catch {
+        setShareFeedback({
+          loteId,
+          message: `Não foi possível copiar. Compartilhe este link: ${url}`,
+        });
+      }
+    }
   };
 
   const loadMoreBids = async () => {
@@ -355,6 +394,18 @@ const MeusArrematesPage = () => {
                   </p>
 
                   <div className="my-bid-card__footer">
+                    {bid.situacao === "arrematado" &&
+                      bid.lote.status === "concluido" && (
+                        <button
+                          aria-label={`Compartilhar auditoria do lote #${bid.lote.id}`}
+                          className="my-bid-card__share"
+                          onClick={() => shareAudit(bid.lote.id)}
+                          type="button"
+                        >
+                          <IoShareSocialOutline aria-hidden="true" />
+                          Compartilhar auditoria
+                        </button>
+                      )}
                     <button
                       className="my-bid-card__history"
                       onClick={() => openHistory(bid)}
@@ -369,6 +420,11 @@ const MeusArrematesPage = () => {
                       Saber mais <IoChevronForward aria-hidden="true" />
                     </Link>
                   </div>
+                  {shareFeedback?.loteId === bid.lote.id && (
+                    <p className="my-bid-card__share-feedback" role="status">
+                      {shareFeedback.message}
+                    </p>
+                  )}
                 </div>
               </article>
             ))

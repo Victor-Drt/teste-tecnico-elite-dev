@@ -1,3 +1,5 @@
+import { isAxiosError } from "axios";
+import { useEffect, useState } from "react";
 import {
   IoCalendarOutline,
   IoCheckmarkCircle,
@@ -6,38 +8,165 @@ import {
   IoTrophyOutline,
 } from "react-icons/io5";
 import { useParams } from "react-router";
+import { fetchAuditoriaPublica } from "../../services/auditoria";
+import { getItemImageUrl } from "../../services/itens";
+import type { AuditoriaPublica } from "../../types/auditoria";
 import "./styles.css";
 
-const bidHistory = [
-  { participant: 9, amount: "R$ 12.500,00", time: "14:32:08" },
-  { participant: 14, amount: "R$ 11.800,00", time: "14:29:41" },
-  { participant: 3, amount: "R$ 10.950,00", time: "14:26:17" },
-  { participant: 21, amount: "R$ 9.700,00", time: "14:20:53" },
-];
+type PageState =
+  | { loteId: string; status: "loading" }
+  | { loteId: string; status: "error"; message: string }
+  | { loteId: string; status: "loaded"; audit: AuditoriaPublica };
+
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatDate(value: string): string {
+  return dateTimeFormatter.format(new Date(value));
+}
+
+function AuditMessage({
+  isLoading,
+  message,
+  onRetry,
+}: {
+  isLoading: boolean;
+  message: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="audit-page">
+      <main className="audit-card">
+        <nav aria-label="Navegação da auditoria" className="audit-navbar">
+          <span>Registro público de leilão</span>
+          <span className="audit-navbar__note">Consulta pública</span>
+        </nav>
+        <section
+          aria-live="polite"
+          className="audit-feedback"
+          role={isLoading ? "status" : "alert"}
+        >
+          <h1>
+            {isLoading ? "Carregando auditoria" : "Auditoria indisponível"}
+          </h1>
+          <p>{message}</p>
+          {onRetry && (
+            <button onClick={onRetry} type="button">
+              Tentar novamente
+            </button>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}
 
 const AuditoriaPage = () => {
-  const { loteId } = useParams();
+  const { loteId = "" } = useParams();
+  const [reloadKey, setReloadKey] = useState(0);
+  const [pageState, setPageState] = useState<PageState>({
+    loteId: "",
+    status: "loading",
+  });
+  const isCurrentPage = pageState.loteId === loteId;
+  const audit =
+    isCurrentPage && pageState.status === "loaded" ? pageState.audit : null;
+  const isLoading = !isCurrentPage || pageState.status === "loading";
+  const errorMessage =
+    isCurrentPage && pageState.status === "error" ? pageState.message : "";
+
+  useEffect(() => {
+    let isCurrent = true;
+    const parsedLotId = Number(loteId);
+
+    if (!Number.isSafeInteger(parsedLotId) || parsedLotId < 1) {
+      Promise.resolve().then(() => {
+        if (isCurrent) {
+          setPageState({
+            loteId,
+            status: "error",
+            message: "O identificador do lote é inválido.",
+          });
+        }
+      });
+      return () => {
+        isCurrent = false;
+      };
+    }
+
+    fetchAuditoriaPublica(parsedLotId)
+      .then((response) => {
+        if (isCurrent) {
+          setPageState({ loteId, status: "loaded", audit: response });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        const message = isAxiosError<{ detail?: string }>(error)
+          ? error.response?.status === 404
+            ? "Este lote não possui uma auditoria pública disponível."
+            : error.response?.status === 409
+              ? error.response.data.detail ??
+                "Os dados do encerramento não correspondem ao histórico de lances."
+              : "Não foi possível carregar os dados da auditoria."
+          : "Não foi possível carregar os dados da auditoria.";
+        setPageState({ loteId, status: "error", message });
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [loteId, reloadKey]);
+
+  if (isLoading) {
+    return (
+      <AuditMessage
+        isLoading
+        message="Buscando os dados públicos do lote..."
+      />
+    );
+  }
+
+  if (errorMessage || !audit) {
+    return (
+      <AuditMessage
+        isLoading={false}
+        message={errorMessage || "Não foi possível encontrar esta auditoria."}
+        onRetry={() => setReloadKey((key) => key + 1)}
+      />
+    );
+  }
 
   return (
     <div className="audit-page">
       <main className="audit-card">
         <nav aria-label="Navegação da auditoria" className="audit-navbar">
           <span>Registro público de leilão</span>
-          <span className="audit-navbar__note">Demonstração de interface</span>
+          <span className="audit-navbar__note">Consulta pública</span>
         </nav>
 
         <div className="audit-content">
           <header className="audit-header">
             <div>
               <p className="audit-eyebrow">Auditoria pública</p>
-              <h1>Lote #{loteId}</h1>
+              <h1>Lote #{audit.lote_id}</h1>
               <p className="audit-header__subtitle">
-                Registro de encerramento e integridade do leilão
+                Registro de encerramento e histórico público do leilão
               </p>
             </div>
-            <span className="audit-integrity-badge">
+            <span className="audit-status-badge">
               <IoCheckmarkCircle aria-hidden="true" />
-              Íntegro
+              Encerrado
             </span>
           </header>
 
@@ -47,34 +176,22 @@ const AuditoriaPage = () => {
                 <div className="audit-section-heading">
                   <div>
                     <p className="audit-eyebrow">Obra arrematada</p>
-                    <h2 id="audit-item-title">Composição em azul nº 3</h2>
+                    <h2 id="audit-item-title">{audit.item.titulo}</h2>
                   </div>
                 </div>
 
                 <figure className="audit-item-figure">
-                  <div
-                    aria-label="Ilustração abstrata da obra do lote"
+                  <img
+                    alt={audit.item.titulo}
                     className="audit-artwork"
-                    role="img"
-                  >
-                    <svg aria-hidden="true" viewBox="0 0 640 400">
-                      <rect fill="#e8e8f1" height="400" width="640" />
-                      <rect fill="#39334e" height="318" width="496" x="72" y="41" />
-                      <circle cx="211" cy="158" fill="#7569cc" r="77" />
-                      <path
-                        d="M288 80h213v102H288z"
-                        fill="#a5a0d4"
-                        transform="rotate(18 394 131)"
-                      />
-                      <path
-                        d="M126 284c62-79 120-65 182-12s112 63 206 4v83H126z"
-                        fill="#63599e"
-                      />
-                      <circle cx="431" cy="238" fill="#d2cfea" r="33" />
-                    </svg>
-                  </div>
+                    decoding="async"
+                    src={getItemImageUrl(audit.item.id)}
+                  />
                   <figcaption>
-                    Prévia ilustrativa da obra · Acervo de arte contemporânea
+                    {audit.item.info_artista ?? "Artista não informado"}
+                    {audit.item.data_exibicao
+                      ? ` · ${audit.item.data_exibicao}`
+                      : ""}
                   </figcaption>
                 </figure>
               </section>
@@ -89,25 +206,21 @@ const AuditoriaPage = () => {
                   </span>
                   <div>
                     <h2 id="audit-cryptography-title">
-                      Integridade criptográfica
+                      Identificação dos dados
                     </h2>
-                    <p>Registro protegido e validado</p>
+                    <p>Resumo SHA-256 desta consulta</p>
                   </div>
-                  <span className="audit-authenticated">
-                    <IoCheckmarkCircle aria-hidden="true" />
-                    Autenticado
+                  <span className="audit-hash-status">
+                    SHA-256 calculado
                   </span>
                 </div>
                 <div className="audit-hash">
-                  <span>Hash SHA-256 do registro</span>
-                  <code>
-                    7e3b91a4c82f6d05e1a739bc4f028d61
-                    <wbr />
-                    b5a8e2049d7c31f6a0e82b5c13d94700
-                  </code>
+                  <span>Hash dos dados públicos</span>
+                  <code>{audit.hash_sha256}</code>
                 </div>
                 <p className="audit-crypto__algorithm">
-                  Algoritmo SHA-256 · Validação do bloco concluída
+                  Fingerprint dos dados exibidos; não representa assinatura
+                  digital nem trilha imutável.
                 </p>
               </section>
             </div>
@@ -121,9 +234,11 @@ const AuditoriaPage = () => {
                   <IoTrophyOutline aria-hidden="true" />
                   <span id="audit-winner-title">Lance vencedor</span>
                 </div>
-                <p className="audit-winner__amount">R$ 12.500,00</p>
+                <p className="audit-winner__amount">
+                  {currencyFormatter.format(Number(audit.valor_arrematado))}
+                </p>
                 <p className="audit-winner__participant">
-                  Arrematado por <strong>Participante #9</strong>
+                  Arrematado por <strong>{audit.vencedor}</strong>
                 </p>
               </section>
 
@@ -137,8 +252,7 @@ const AuditoriaPage = () => {
                   </span>
                   <div>
                     <span className="audit-stat__label">Encerramento</span>
-                    <strong>18/10/2025</strong>
-                    <span className="audit-stat__detail">às 14:32</span>
+                    <strong>{formatDate(audit.data_fim)}</strong>
                   </div>
                 </div>
                 <div className="audit-stat">
@@ -147,7 +261,7 @@ const AuditoriaPage = () => {
                   </span>
                   <div>
                     <span className="audit-stat__label">Participantes</span>
-                    <strong>12 participantes</strong>
+                    <strong>{audit.total_participantes} participantes</strong>
                     <span className="audit-stat__detail">anonimizados</span>
                   </div>
                 </div>
@@ -162,24 +276,31 @@ const AuditoriaPage = () => {
                     <p className="audit-eyebrow">Transparência do processo</p>
                     <h2 id="audit-history-title">Histórico de lances</h2>
                   </div>
-                  <span>{bidHistory.length} registros</span>
+                  <span>{audit.total_lances} registros</span>
                 </div>
                 <ol className="audit-bids">
-                  {bidHistory.map((bid, index) => (
-                    <li
-                      className={`audit-bid${index === 0 ? " audit-bid--winner" : ""}`}
-                      key={bid.participant}
-                    >
-                      <span className="audit-bid__position">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <div className="audit-bid__details">
-                        <strong>Participante #{bid.participant}</strong>
-                        <span>{bid.time}</span>
-                      </div>
-                      <strong className="audit-bid__amount">{bid.amount}</strong>
-                    </li>
-                  ))}
+                  {audit.lances
+                    .slice()
+                    .reverse()
+                    .map((bid, index) => (
+                      <li
+                        className={`audit-bid${index === 0 ? " audit-bid--winner" : ""}`}
+                        key={`${bid.data_criacao}-${index}`}
+                      >
+                        <span className="audit-bid__position">
+                          {String(audit.total_lances - index).padStart(2, "0")}
+                        </span>
+                        <div className="audit-bid__details">
+                          <strong>{bid.participante}</strong>
+                          <time dateTime={bid.data_criacao}>
+                            {formatDate(bid.data_criacao)}
+                          </time>
+                        </div>
+                        <strong className="audit-bid__amount">
+                          {currencyFormatter.format(Number(bid.valor))}
+                        </strong>
+                      </li>
+                    ))}
                 </ol>
               </section>
             </div>
