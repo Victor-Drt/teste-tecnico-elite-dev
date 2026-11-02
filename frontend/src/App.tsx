@@ -7,6 +7,7 @@ import AppLayout from "./layout/AppLayout";
 import VitrinePage from "./pages/VitrinePage";
 import PainelLeiloeiroPage from "./pages/PainleLeiloeiroPage";
 import RoleRoute from "./components/RoleRoute";
+import ItemDetalhesPage from "./pages/ItemDetalhesPage";
 
 function AppShell() {
   return (
@@ -18,6 +19,7 @@ function AppShell() {
         <Route element={<AppLayout />}>
           <Route element={<RoleRoute role="licitante" redirectTo="/painel-leiloeiro" />}>
             <Route path="/vitrine" element={<VitrinePage />} />
+            <Route path="/lotes/:loteId" element={<ItemDetalhesPage />} />
           </Route>
           <Route element={<RoleRoute role="leiloeiro" redirectTo="/vitrine" />}>
             <Route path="/painel-leiloeiro" element={<PainelLeiloeiroPage />} />

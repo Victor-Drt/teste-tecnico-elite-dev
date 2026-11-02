@@ -19,3 +19,9 @@ export interface LoteListagem {
   vencedor_id: number | null;
   item: ItemLoteListagem;
 }
+
+export interface LoteVitrine extends LoteListagem {
+  item: ItemLoteListagem & {
+    descricao: string | null;
+  };
+}
