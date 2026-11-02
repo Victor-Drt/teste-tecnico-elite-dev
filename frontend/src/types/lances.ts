@@ -11,6 +11,14 @@ export interface LanceResumo {
   data_criacao: string;
 }
 
+export interface LancePublico {
+  id: number;
+  participante: string;
+  lote_id: number;
+  valor: string;
+  data_criacao: string;
+}
+
 export interface LanceCreate {
   lote_id: number;
   valor: string;
@@ -38,12 +46,12 @@ export interface LanceHistoricoItem {
 export interface LanceBidEvent {
   tipo: "lance_atualizado";
   lote_id: number;
-  lance: LanceResumo;
-  lance_atual: LanceResumo | null;
+  lance: LancePublico;
+  lance_atual: LancePublico | null;
   valor_atual: string;
   data_fim: string;
   participantes: Array<{
-    licitante_id: number;
+    participante: string;
     posicao: number;
     situacao: "ganhando" | "superado";
   }>;
@@ -57,11 +65,11 @@ export interface SalaInicialEvent {
     data_fim: string;
     valor_atual: string;
   };
-  lance_atual: LanceResumo | null;
-  historico_lances: LanceResumo[];
+  lance_atual: LancePublico | null;
+  historico_lances: LancePublico[];
   participantes: LanceBidEvent["participantes"];
   usuario: {
-    id: number;
+    participante: string | null;
     posicao: number | null;
     situacao: "ganhando" | "superado" | "sem_lance";
   };

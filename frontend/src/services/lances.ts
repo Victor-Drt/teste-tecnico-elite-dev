@@ -2,7 +2,7 @@ import type {
   CategoriaMeusLances,
   LanceCreate,
   LanceHistoricoItem,
-  LanceResumo,
+  LancePublico,
   MeuLanceItem,
   Pagina,
 } from "../types/lances";
@@ -33,15 +33,15 @@ export async function fetchHistoricoLances(
 
 export async function fetchLancesPorLote(
   loteId: number,
-): Promise<LanceResumo[]> {
-  const response = await axiosClient.get<LanceResumo[]>(
+): Promise<LancePublico[]> {
+  const response = await axiosClient.get<LancePublico[]>(
     `lances/lotes/${loteId}`,
   );
   return response.data;
 }
 
-export async function criarLance(data: LanceCreate): Promise<LanceResumo> {
-  const response = await axiosClient.post<LanceResumo>("lances/", data);
+export async function criarLance(data: LanceCreate): Promise<LancePublico> {
+  const response = await axiosClient.post<LancePublico>("lances/", data);
   return response.data;
 }
 

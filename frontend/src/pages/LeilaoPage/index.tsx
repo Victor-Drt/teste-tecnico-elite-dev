@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import axios from "axios";
-import { Link, useOutletContext, useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import {
   IoArrowBack,
   IoPeopleOutline,
@@ -11,12 +11,11 @@ import { criarLance, getSalaLeilaoWebSocketUrl } from "../../services/lances";
 import { fetchLoteVitrine } from "../../services/lotes";
 import { getItemImageUrl } from "../../services/itens";
 import type {
-  LanceResumo,
+  LancePublico,
   SalaLeilaoEvent,
   SalaInicialEvent,
 } from "../../types/lances";
 import type { LoteVitrine } from "../../types/lotes";
-import type { User } from "../../types/usuarios";
 import "./styles.css";
 
 type PageState =
@@ -26,9 +25,10 @@ type PageState =
 
 type RoomState = {
   loteId: number;
-  lances: LanceResumo[];
-  lanceAtual: LanceResumo | null;
+  lances: LancePublico[];
+  lanceAtual: LancePublico | null;
   participantes: SalaInicialEvent["participantes"];
+  participanteUsuario: string | null;
   situacaoUsuario: SalaInicialEvent["usuario"]["situacao"];
   valorAtual: string;
   dataFim: string;
@@ -69,7 +69,7 @@ function formatCountdown(target: Date, currentTime: number): string {
   return days > 0 ? `${days}d ${clock}` : clock;
 }
 
-function sortHistory(lances: LanceResumo[]): LanceResumo[] {
+function sortHistory(lances: LancePublico[]): LancePublico[] {
   return [...lances].sort(
     (first, second) =>
       new Date(second.data_criacao).getTime() -
@@ -78,14 +78,14 @@ function sortHistory(lances: LanceResumo[]): LanceResumo[] {
   );
 }
 
-function isLanceResumo(value: unknown): value is LanceResumo {
+function isLancePublico(value: unknown): value is LancePublico {
   return (
     typeof value === "object" &&
     value !== null &&
     "id" in value &&
     typeof value.id === "number" &&
-    "licitante_id" in value &&
-    typeof value.licitante_id === "number" &&
+    "participante" in value &&
+    typeof value.participante === "string" &&
     "lote_id" in value &&
     typeof value.lote_id === "number" &&
     "valor" in value &&
@@ -101,8 +101,8 @@ function isParticipant(
   return (
     typeof value === "object" &&
     value !== null &&
-    "licitante_id" in value &&
-    typeof value.licitante_id === "number" &&
+    "participante" in value &&
+    typeof value.participante === "string" &&
     "posicao" in value &&
     typeof value.posicao === "number" &&
     "situacao" in value &&
@@ -128,18 +128,19 @@ function isSalaInicialEvent(value: unknown): value is SalaInicialEvent {
     !("valor_atual" in value.lote) ||
     typeof value.lote.valor_atual !== "string" ||
     !("lance_atual" in value) ||
-    (value.lance_atual !== null && !isLanceResumo(value.lance_atual)) ||
+    (value.lance_atual !== null && !isLancePublico(value.lance_atual)) ||
     !("historico_lances" in value) ||
     !Array.isArray(value.historico_lances) ||
-    !value.historico_lances.every(isLanceResumo) ||
+    !value.historico_lances.every(isLancePublico) ||
     !("participantes" in value) ||
     !Array.isArray(value.participantes) ||
     !value.participantes.every(isParticipant) ||
     !("usuario" in value) ||
     typeof value.usuario !== "object" ||
     value.usuario === null ||
-    !("id" in value.usuario) ||
-    typeof value.usuario.id !== "number" ||
+    !("participante" in value.usuario) ||
+    (value.usuario.participante !== null &&
+      typeof value.usuario.participante !== "string") ||
     !("posicao" in value.usuario) ||
     (value.usuario.posicao !== null &&
       typeof value.usuario.posicao !== "number") ||
@@ -165,9 +166,9 @@ function isLanceBidEvent(value: unknown): value is Extract<
     !("lote_id" in value) ||
     typeof value.lote_id !== "number" ||
     !("lance" in value) ||
-    !isLanceResumo(value.lance) ||
+    !isLancePublico(value.lance) ||
     !("lance_atual" in value) ||
-    (value.lance_atual !== null && !isLanceResumo(value.lance_atual)) ||
+    (value.lance_atual !== null && !isLancePublico(value.lance_atual)) ||
     !("valor_atual" in value) ||
     typeof value.valor_atual !== "string" ||
     !("data_fim" in value) ||
@@ -202,7 +203,6 @@ function getRoomStatusLabel(status: RoomState["situacaoUsuario"]): string {
 
 const LeilaoPage = () => {
   const { loteId = "" } = useParams();
-  const user = useOutletContext<User>();
   const [pageState, setPageState] = useState<PageState>({
     loteId: "",
     status: "loading",
@@ -297,6 +297,7 @@ const LeilaoPage = () => {
             lances: sortHistory(message.historico_lances),
             lanceAtual: message.lance_atual,
             participantes: message.participantes,
+            participanteUsuario: message.usuario.participante,
             situacaoUsuario: message.usuario.situacao,
             valorAtual: message.lote.valor_atual,
             dataFim: message.lote.data_fim,
@@ -316,7 +317,8 @@ const LeilaoPage = () => {
               (bid) => bid.id !== message.lance.id,
             );
             const currentParticipant = message.participantes.find(
-              (participant) => participant.licitante_id === user.id,
+              (participant) =>
+                participant.participante === current.participanteUsuario,
             );
             return {
               ...current,
@@ -361,7 +363,7 @@ const LeilaoPage = () => {
       isCurrentSocket = false;
       socket.close(1000);
     };
-  }, [lot, user.id]);
+  }, [lot]);
 
   useEffect(() => {
     const timerId = window.setInterval(
@@ -404,13 +406,13 @@ const LeilaoPage = () => {
           ...current.lances.filter((bid) => bid.id !== newBid.id),
         ]);
         const participantes = current.participantes.some(
-          (participant) => participant.licitante_id === user.id,
+          (participant) => participant.participante === newBid.participante,
         )
           ? current.participantes
           : [
               ...current.participantes,
               {
-                licitante_id: user.id,
+                participante: newBid.participante,
                 posicao: current.participantes.length + 1,
                 situacao: "ganhando" as const,
               },
@@ -420,6 +422,7 @@ const LeilaoPage = () => {
           lances,
           lanceAtual: newBid,
           participantes,
+          participanteUsuario: newBid.participante,
           situacaoUsuario: "ganhando",
           valorAtual: newBid.valor,
         };
@@ -520,7 +523,7 @@ const LeilaoPage = () => {
             <strong>{currencyFormatter.format(Number(currentValue))}</strong>
             {activeRoom?.lanceAtual && (
               <small>
-                Lance de #{activeRoom.lanceAtual.licitante_id}
+                Lance de {activeRoom.lanceAtual.participante}
               </small>
             )}
           </section>
@@ -599,9 +602,9 @@ const LeilaoPage = () => {
                   <li key={bid.id}>
                     <div>
                       <strong>
-                        {bid.licitante_id === user.id
+                        {bid.participante === activeRoom?.participanteUsuario
                           ? "Você"
-                          : `Licitante #${bid.licitante_id}`}
+                          : bid.participante}
                       </strong>
                       <time>
                         {new Intl.DateTimeFormat("pt-BR", {

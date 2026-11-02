@@ -3,7 +3,7 @@ import { IoArrowBack, IoArrowForward, IoChevronForward, IoClose } from "react-ic
 import { fetchLancesPorLote } from "../../services/lances";
 import { getItemImageUrl } from "../../services/itens";
 import { fetchLotes } from "../../services/lotes";
-import type { LanceResumo } from "../../types/lances";
+import type { LancePublico } from "../../types/lances";
 import type { LoteListagem, LoteStatus } from "../../types/lotes";
 import "./styles.css";
 
@@ -84,7 +84,7 @@ async function fetchAllLots(status: LoteStatus): Promise<LoteListagem[]> {
   return lots;
 }
 
-function getHistoryRows(lances: LanceResumo[]): LanceResumo[] {
+function getHistoryRows(lances: LancePublico[]): LancePublico[] {
   return [...lances].sort(
     (first, second) =>
       new Date(second.data_criacao).getTime() -
@@ -109,7 +109,7 @@ const PainelLeiloeiroPage = () => {
   const [loadError, setLoadError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
   const [modal, setModal] = useState<ModalState>(null);
-  const [history, setHistory] = useState<LanceResumo[]>([]);
+  const [history, setHistory] = useState<LancePublico[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
 
@@ -460,7 +460,7 @@ const PainelLeiloeiroPage = () => {
                 {history.map((bid) => (
                   <li key={bid.id}>
                     <div>
-                      <strong>Licitante #{bid.licitante_id}</strong>
+                      <strong>{bid.participante}</strong>
                       <time>
                         {dateTimeFormatter.format(new Date(bid.data_criacao))}
                       </time>
