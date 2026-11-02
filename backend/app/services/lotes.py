@@ -224,7 +224,9 @@ class LoteService:
                 carteira_vencedor = carteiras_por_usuario.get(vencedor_id)
                 if carteira_vencedor is None:
                     raise ValueError(
-                        f"Carteira do vencedor do lote {lote.id} não foi encontrada."
+                        f"Carteira do vencedor {vencedor_id} do lote {lote.id} "
+                        "não foi encontrada; a liquidação foi cancelada para "
+                        "evitar alterar saldos sem uma carteira válida."
                     )
 
                 carteira_leiloeiro = carteiras_por_usuario.get(lote.leiloeiro_id)
