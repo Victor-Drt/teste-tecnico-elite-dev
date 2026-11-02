@@ -108,7 +108,12 @@ const Navbar = ({ user }: NavbarProps) => {
             >
               Carteira
             </NavLink>
-            <NavLink className="auction-navbar__link" to="/arremates">
+            <NavLink
+              className={({ isActive }) =>
+                `auction-navbar__link${isActive ? " is-active" : ""}`
+              }
+              to="/arremates"
+            >
               Meus Arremates
             </NavLink>
           </>
