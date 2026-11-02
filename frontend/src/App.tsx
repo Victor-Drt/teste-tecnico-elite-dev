@@ -10,6 +10,7 @@ import RoleRoute from "./components/RoleRoute";
 import ItemDetalhesPage from "./pages/ItemDetalhesPage";
 import CarteiraPage from "./pages/CarteiraPage";
 import MeusArrematesPage from "./pages/MeusArrematesPage";
+import ItensPage from "./pages/ItensPage";
 
 function AppShell() {
   return (
@@ -27,6 +28,7 @@ function AppShell() {
           </Route>
           <Route element={<RoleRoute role="leiloeiro" redirectTo="/vitrine" />}>
             <Route path="/painel-leiloeiro" element={<PainelLeiloeiroPage />} />
+            <Route path="/itens" element={<ItensPage />} />
           </Route>
         </Route>
       </Route>

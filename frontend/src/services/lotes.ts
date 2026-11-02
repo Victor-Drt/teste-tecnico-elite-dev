@@ -1,4 +1,9 @@
-import type { LoteListagem, LoteStatus, LoteVitrine } from "../types/lotes";
+import type {
+  LoteCreate,
+  LoteListagem,
+  LoteStatus,
+  LoteVitrine,
+} from "../types/lotes";
 import { axiosClient } from "./api";
 
 export async function fetchLotes(
@@ -17,4 +22,8 @@ export async function fetchLoteVitrine(loteId: number): Promise<LoteVitrine> {
     `lotes/${loteId}/vitrine`,
   );
   return response.data;
+}
+
+export async function createLote(data: LoteCreate): Promise<void> {
+  await axiosClient.post("lotes/", data);
 }

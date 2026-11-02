@@ -25,3 +25,11 @@ export interface LoteVitrine extends LoteListagem {
     descricao: string | null;
   };
 }
+
+export interface LoteCreate {
+  item_id: number;
+  data_inicio: string;
+  data_fim: string;
+  valor_inicial: string;
+  incremento_minimo: string;
+}

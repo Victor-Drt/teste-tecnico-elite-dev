@@ -82,14 +82,24 @@ const Navbar = ({ user }: NavbarProps) => {
 
       <nav aria-label="Navegação principal" className="auction-navbar__links">
         {user.papel === "leiloeiro" ? (
-          <NavLink
-            className={({ isActive }) =>
-              `auction-navbar__link${isActive ? " is-active" : ""}`
-            }
-            to="/painel-leiloeiro"
-          >
-            Meus Lotes
-          </NavLink>
+          <>
+            <NavLink
+              className={({ isActive }) =>
+                `auction-navbar__link${isActive ? " is-active" : ""}`
+              }
+              to="/painel-leiloeiro"
+            >
+              Meus Lotes
+            </NavLink>
+            <NavLink
+              className={({ isActive }) =>
+                `auction-navbar__link${isActive ? " is-active" : ""}`
+              }
+              to="/itens"
+            >
+              Itens
+            </NavLink>
+          </>
         ) : (
           <>
             <NavLink
