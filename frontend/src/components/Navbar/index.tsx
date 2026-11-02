@@ -34,6 +34,10 @@ const Navbar = ({ user }: NavbarProps) => {
   const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
+    if (user.papel !== "licitante") {
+      return;
+    }
+
     let isCurrent = true;
     fetchWallet()
       .then((userWallet) => {
@@ -50,7 +54,7 @@ const Navbar = ({ user }: NavbarProps) => {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [user.papel]);
 
   const handleLogout = async () => {
     setLogoutError("");
@@ -71,26 +75,39 @@ const Navbar = ({ user }: NavbarProps) => {
       <Link
         aria-label="LeilõesEliteDev - início"
         className="auction-navbar__brand"
-        to="/"
+        to={user.papel === "leiloeiro" ? "/painel-leiloeiro" : "/vitrine"}
       >
         LeilõesEliteDev
       </Link>
 
       <nav aria-label="Navegação principal" className="auction-navbar__links">
-        <NavLink
-          className={({ isActive }) =>
-            `auction-navbar__link${isActive ? " is-active" : ""}`
-          }
-          to="/vitrine"
-        >
-          Vitrine
-        </NavLink>
-        <NavLink className="auction-navbar__link" to="/carteira">
-          Carteira
-        </NavLink>
-        <NavLink className="auction-navbar__link" to="/arremates">
-          Meus Arremates
-        </NavLink>
+        {user.papel === "leiloeiro" ? (
+          <NavLink
+            className={({ isActive }) =>
+              `auction-navbar__link${isActive ? " is-active" : ""}`
+            }
+            to="/painel-leiloeiro"
+          >
+            Painel Leiloeiro
+          </NavLink>
+        ) : (
+          <>
+            <NavLink
+              className={({ isActive }) =>
+                `auction-navbar__link${isActive ? " is-active" : ""}`
+              }
+              to="/vitrine"
+            >
+              Vitrine
+            </NavLink>
+            <NavLink className="auction-navbar__link" to="/carteira">
+              Carteira
+            </NavLink>
+            <NavLink className="auction-navbar__link" to="/arremates">
+              Meus Arremates
+            </NavLink>
+          </>
+        )}
       </nav>
 
       <div className="auction-navbar__account">
@@ -120,19 +137,21 @@ const Navbar = ({ user }: NavbarProps) => {
               </div>
             </div>
 
-            <div className="account-popover__balance">
-              <span>
-                <IoWalletOutline aria-hidden="true" />
-                Saldo disponível
-              </span>
-              <strong>
-                {wallet
-                  ? currencyFormatter.format(Number(wallet.saldo_disponivel))
-                  : walletError
-                    ? "Indisponível"
-                    : "Carregando..."}
-              </strong>
-            </div>
+            {user.papel === "licitante" && (
+              <div className="account-popover__balance">
+                <span>
+                  <IoWalletOutline aria-hidden="true" />
+                  Saldo disponível
+                </span>
+                <strong>
+                  {wallet
+                    ? currencyFormatter.format(Number(wallet.saldo_disponivel))
+                    : walletError
+                      ? "Indisponível"
+                      : "Carregando..."}
+                </strong>
+              </div>
+            )}
 
             {logoutError && (
               <p className="account-popover__error" role="alert">

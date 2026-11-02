@@ -5,6 +5,7 @@ import heroLoginIllustration from "../../assets/login-page-woman.svg";
 import "./styles.css";
 import { IoEyeOutline, IoEyeSharp } from "react-icons/io5";
 import { login } from "../../services/auth";
+import { fetchUser } from "../../services/usuarios";
 
 const DEFAULT_REDIRECT_PATH = "/vitrine";
 
@@ -49,7 +50,14 @@ const LoginPage = () => {
 
     try {
       await login(email, password);
-      navigate(requestedPath, { replace: true });
+      const user = await fetchUser();
+      const destination =
+        user.papel === "leiloeiro"
+          ? "/painel-leiloeiro"
+          : requestedPath === "/painel-leiloeiro"
+            ? "/vitrine"
+            : requestedPath;
+      navigate(destination, { replace: true });
     } catch (error) {
       if (axios.isAxiosError<{ detail?: string }>(error)) {
         setErrorMessage(
