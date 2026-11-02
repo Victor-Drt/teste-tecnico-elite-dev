@@ -88,7 +88,7 @@ const Navbar = ({ user }: NavbarProps) => {
             }
             to="/painel-leiloeiro"
           >
-            Painel Leiloeiro
+            Meus Lotes
           </NavLink>
         ) : (
           <>

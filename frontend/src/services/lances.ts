@@ -1,6 +1,7 @@
 import type {
   CategoriaMeusLances,
   LanceHistoricoItem,
+  LanceResumo,
   MeuLanceItem,
   Pagina,
 } from "../types/lances";
@@ -25,6 +26,15 @@ export async function fetchHistoricoLances(
   const response = await axiosClient.get<Pagina<LanceHistoricoItem>>(
     `lances/lotes/${loteId}/historico`,
     { params: { offset, limit } },
+  );
+  return response.data;
+}
+
+export async function fetchLancesPorLote(
+  loteId: number,
+): Promise<LanceResumo[]> {
+  const response = await axiosClient.get<LanceResumo[]>(
+    `lances/lotes/${loteId}`,
   );
   return response.data;
 }
