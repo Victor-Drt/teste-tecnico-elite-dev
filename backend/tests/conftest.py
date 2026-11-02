@@ -241,7 +241,7 @@ def lote_teste(db_session: Session, itens_catalogo_teste, usuario_teste):
 
 @pytest.fixture
 def lote_ao_vivo(db_session: Session, itens_catalogo_teste, usuario_teste):
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     from app.models.lotes import Lote, StatusLote
 
@@ -252,8 +252,8 @@ def lote_ao_vivo(db_session: Session, itens_catalogo_teste, usuario_teste):
         valor_atual=100,
         incremento_minimo=10,
         status=StatusLote.AO_VIVO,
-        data_inicio=datetime(2030, 1, 1, 10),
-        data_fim=datetime(2030, 1, 1, 12),
+        data_inicio=datetime.now() - timedelta(hours=1),
+        data_fim=datetime.now() + timedelta(hours=1),
     )
     db_session.add(lote)
     db_session.commit()

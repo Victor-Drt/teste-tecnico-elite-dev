@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from sqlalchemy.orm import Session
 
 from app.repositories import (
@@ -18,6 +20,8 @@ from app.schemas.lances import (
 from app.schemas.usuarios import UsuarioResponse
 from app.models.lances import Lance
 from app.models.lotes import StatusLote
+
+JANELA_ANTISNIPING = timedelta(minutes=2)
 
 
 class LanceService:
@@ -104,23 +108,51 @@ class LanceService:
         self, usuario: UsuarioResponse, lance_data: LanceCreate
     ) -> LanceResumo:
 
-        lote = lote_repository.buscar_lote_aberto_por_id(self.db, lance_data.lote_id)
+        lote = lote_repository.buscar_lote_para_lance(self.db, lance_data.lote_id)
 
         if lote is None:
-            raise ValueError("Lote não disponivel")
+            raise ValueError("Lote não encontrado.")
+
+        agora = datetime.now()
+
+        if (
+            lote.status in (StatusLote.CONCLUIDO, StatusLote.CANCELADO)
+            or lote.data_fim <= agora
+        ):
+            raise ValueError(
+                "Este leilão já foi encerrado e não aceita novos lances."
+            )
+
+        if (
+            lote.status == StatusLote.EM_BREVE
+            or lote.data_inicio > agora
+        ):
+            raise ValueError("Este leilão ainda não começou.")
+
+        if lote.status != StatusLote.AO_VIVO:
+            raise ValueError(
+                "Este leilão já foi encerrado e não aceita novos lances."
+            )
 
         if usuario.papel.value != "licitante":
             raise ValueError("Somente licitantes podem fazer um lance")
 
-        if lance_data.valor <= lote.incremento_minimo + lote.valor_atual:
-            raise ValueError(
-                "Lance não pode ser menor do que o valor minimo de um novo lance"
-            )
-
         maior_lance = max(lote.lances, key=lambda lance: lance.valor, default=None)
 
         if maior_lance is not None and usuario.id == maior_lance.licitante_id:
-            raise ValueError("Voce não pode cobrir seu proprio Lance")
+            raise ValueError(
+                "Você já está ganhando este lote; aguarde outro participante cobrir seu lance."
+            )
+
+        valor_minimo = lote.incremento_minimo + lote.valor_atual
+        if lance_data.valor < valor_minimo:
+            valor_formatado = f"{valor_minimo:,.2f}"
+            valor_formatado = (
+                valor_formatado.replace(",", "|").replace(".", ",").replace("|", ".")
+            )
+            raise ValueError(
+                f"Lance abaixo do mínimo. O próximo lance deve ser de pelo menos R$ {valor_formatado}."
+            )
 
         carteira = carteira_repository.buscar_carteira_por_usuario_id(
             self.db, usuario.id
@@ -132,7 +164,9 @@ class LanceService:
         saldo_disponivel = carteira.saldo_total - carteira.saldo_comprometido
 
         if lance_data.valor > saldo_disponivel:
-            raise ValueError("Saldo insuficiente para efetuar este lance")
+            raise ValueError(
+                "Saldo insuficiente para este lance. Deposite ou informe um valor menor."
+            )
 
         carteira_lance_anterior = None
         if maior_lance is not None:
@@ -141,6 +175,12 @@ class LanceService:
             )
             if carteira_lance_anterior is None:
                 raise ValueError("Carteira do licitante anterior não encontrada")
+
+        agora = datetime.now()
+        if lote.data_fim <= agora:
+            raise ValueError(
+                "Este leilão já foi encerrado e não aceita novos lances."
+            )
 
         if carteira_lance_anterior is not None:
             carteira_lance_anterior.saldo_comprometido -= maior_lance.valor
@@ -152,6 +192,9 @@ class LanceService:
 
         if lance is None:
             raise ValueError("Não foi possivel efetuar lance")
+
+        if lote.data_fim - agora <= JANELA_ANTISNIPING:
+            lote.data_fim += JANELA_ANTISNIPING
 
         carteira.saldo_comprometido += lance.valor
 

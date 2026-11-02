@@ -35,6 +35,7 @@ class ItemDetalhesVitrine(ItemResumo):
 
 
 class LoteVitrineResponse(LoteResumo):
+    incremento_minimo: Decimal
     item: ItemDetalhesVitrine
 
 

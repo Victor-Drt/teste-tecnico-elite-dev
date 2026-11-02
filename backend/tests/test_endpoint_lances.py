@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -34,23 +35,44 @@ def test_deve_criar_lance_e_comprometer_saldo_quando_dados_validos(
     usuario_licitante,
     db_session,
 ):
+    data_fim_original = lote_ao_vivo.data_fim
     response = client.post(
         "/api/v1/lances/",
-        json={"lote_id": lote_ao_vivo.id, "valor": 120},
+        json={"lote_id": lote_ao_vivo.id, "valor": 110},
         headers=cabecalho_licitante,
     )
 
     assert response.status_code == 201
     assert response.json()["lote_id"] == lote_ao_vivo.id
     assert response.json()["licitante_id"] == usuario_licitante.id
-    assert response.json()["valor"] == "120.00"
+    assert response.json()["valor"] == "110.00"
 
     db_session.refresh(lote_ao_vivo)
-    assert lote_ao_vivo.valor_atual == Decimal("120.00")
+    assert lote_ao_vivo.valor_atual == Decimal("110.00")
+    assert lote_ao_vivo.data_fim == data_fim_original
     assert lote_ao_vivo.vencedor_id is None
     db_session.refresh(carteira_licitante)
-    assert carteira_licitante.saldo_comprometido == Decimal("120.00")
+    assert carteira_licitante.saldo_comprometido == Decimal("110.00")
     assert db_session.query(Lance).count() == 1
+
+
+@pytest.mark.lances
+def test_deve_estender_leilao_quando_lance_ocorrer_nos_dois_minutos_finais(
+    client, cabecalho_licitante, lote_ao_vivo, carteira_licitante, db_session
+):
+    data_fim_original = datetime.now() + timedelta(seconds=90)
+    lote_ao_vivo.data_fim = data_fim_original
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 110},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 201
+    db_session.refresh(lote_ao_vivo)
+    assert lote_ao_vivo.data_fim == data_fim_original + timedelta(minutes=2)
 
 
 @pytest.mark.lances
@@ -100,7 +122,57 @@ def test_deve_rejeitar_lance_quando_lote_nao_estiver_disponivel(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Lote não disponivel"
+    assert response.json()["detail"] == "Lote não encontrado."
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_lance_quando_lote_ainda_nao_comecou(
+    client, cabecalho_licitante, lote_teste, carteira_licitante
+):
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_teste.id, "valor": 120},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Este leilão ainda não começou."
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_lance_quando_data_de_inicio_ainda_nao_chegou(
+    client, cabecalho_licitante, lote_ao_vivo, carteira_licitante, db_session
+):
+    lote_ao_vivo.data_inicio = datetime.now() + timedelta(minutes=1)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 120},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Este leilão ainda não começou."
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_lance_quando_leilao_ja_foi_encerrado(
+    client, cabecalho_licitante, lote_ao_vivo, carteira_licitante, db_session
+):
+    lote_ao_vivo.status = StatusLote.CONCLUIDO
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/lances/",
+        json={"lote_id": lote_ao_vivo.id, "valor": 120},
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Este leilão já foi encerrado e não aceita novos lances."
+    )
 
 
 @pytest.mark.lances
@@ -109,12 +181,14 @@ def test_deve_rejeitar_lance_abaixo_do_incremento_minimo(
 ):
     response = client.post(
         "/api/v1/lances/",
-        json={"lote_id": lote_ao_vivo.id, "valor": 110},
+        json={"lote_id": lote_ao_vivo.id, "valor": 109},
         headers=cabecalho_licitante,
     )
 
     assert response.status_code == 400
-    assert "valor minimo" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Lance abaixo do mínimo. O próximo lance deve ser de pelo menos R$ 110,00."
+    )
 
 
 @pytest.mark.lances
@@ -130,7 +204,9 @@ def test_deve_rejeitar_lance_quando_saldo_disponivel_for_insuficiente(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Saldo insuficiente para efetuar este lance"
+    assert response.json()["detail"] == (
+        "Saldo insuficiente para este lance. Deposite ou informe um valor menor."
+    )
 
 
 @pytest.mark.lances
@@ -158,7 +234,9 @@ def test_deve_rejeitar_lance_se_usuario_tentar_cobrir_o_proprio_lance(
     )
 
     assert response.status_code == 400
-    assert "cobrir seu proprio" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Você já está ganhando este lote; aguarde outro participante cobrir seu lance."
+    )
 
 
 @pytest.mark.lances

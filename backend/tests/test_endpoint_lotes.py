@@ -165,6 +165,7 @@ def test_licitante_deve_obter_detalhes_do_lote_para_vitrine(
 
     assert response.status_code == 200
     assert response.json()["id"] == lote_teste.id
+    assert response.json()["incremento_minimo"] == "10.00"
     assert response.json()["item"] == {
         "id": lote_teste.item.id,
         "titulo": lote_teste.item.titulo,
