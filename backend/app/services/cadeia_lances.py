@@ -1,19 +1,31 @@
 import hashlib
 import json
 from collections.abc import Sequence
+from datetime import datetime
+from typing import Protocol
 
 from app.models.lances import Lance
 
 HASH_INICIAL_CADEIA = "0" * 64
 
 
+class LanceComParticipante(Protocol):
+    id: int
+    licitante_id: int
+    data_criacao: datetime
+
+
 def ordenar_lances(lances: Sequence[Lance]) -> list[Lance]:
     return sorted(lances, key=lambda lance: (lance.data_criacao, lance.id))
 
 
-def mapear_participantes(lances: Sequence[Lance]) -> dict[int, str]:
+def mapear_participantes(
+    lances: Sequence[LanceComParticipante],
+) -> dict[int, str]:
     participantes: dict[int, str] = {}
-    for lance in ordenar_lances(lances):
+    for lance in sorted(
+        lances, key=lambda item: (item.data_criacao, item.id)
+    ):
         if lance.licitante_id not in participantes:
             participantes[lance.licitante_id] = (
                 f"Participante #{len(participantes) + 1}"

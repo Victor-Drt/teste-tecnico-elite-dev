@@ -21,6 +21,14 @@ class LanceResumo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LancePublico(BaseModel):
+    id: int
+    participante: str
+    lote_id: int
+    valor: Decimal
+    data_criacao: datetime
+
+
 class CategoriaMeusLances(str, Enum):
     MEUS_LANCES = "meus-lances"
     LOTES_VENCIDOS = "lotes-vencidos"

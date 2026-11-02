@@ -9,6 +9,7 @@ from app.schemas.lances import (
     CategoriaMeusLances,
     HistoricoLancesPagina,
     LanceCreate,
+    LancePublico,
     LanceResumo,
     MeuLancePagina,
 )
@@ -36,14 +37,18 @@ def listar_meus_lances(
     )
 
 
-@router.get("/lotes/{lote_id}", status_code=200)
+@router.get(
+    "/lotes/{lote_id}",
+    status_code=200,
+    response_model=list[LancePublico],
+)
 def listar_lances(
     lote_id: int,
     db: Session = Depends(get_db),
-) -> list[LanceResumo]:
+) -> list[LancePublico]:
     service = LanceService(db)
 
-    return service.listar_lances_por_lote(lote_id)
+    return service.listar_lances_publicos_por_lote(lote_id)
 
 
 @router.get(
@@ -83,18 +88,22 @@ def buscar_lance(
         ) from exc
 
 
-@router.post("/", status_code=201)
+@router.post("/", status_code=201, response_model=LancePublico)
 async def criar_lance(
     data: LanceCreate,
     usuario_atual: Annotated[UsuarioResponse, Depends(verificar_role("licitante"))],
     db: Session = Depends(get_db),
-) -> LanceResumo:
+) -> LancePublico:
     service = LanceService(db)
 
     try:
         lance = service.criar_lance(usuario_atual, data)
         await notificar_lance_criado(lance, db)
-        return lance
+        return next(
+            item
+            for item in service.listar_lances_publicos_por_lote(lance.lote_id)
+            if item.id == lance.id
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

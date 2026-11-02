@@ -12,6 +12,7 @@ from app.schemas.lances import (
     HistoricoLancesPagina,
     LanceCreate,
     LanceHistoricoItem,
+    LancePublico,
     LanceResumo,
     MeuLanceItem,
     MeuLancePagina,
@@ -41,6 +42,22 @@ class LanceService:
         lances = repository.listar_lances_por_lote_id(self.db, lote_id)
 
         return [LanceResumo.model_validate(lance) for lance in lances]
+
+    def listar_lances_publicos_por_lote(
+        self, lote_id: int
+    ) -> list[LancePublico]:
+        lances = repository.listar_lances_por_lote_id(self.db, lote_id)
+        participantes = mapear_participantes(lances)
+        return [
+            LancePublico(
+                id=lance.id,
+                participante=participantes[lance.licitante_id],
+                lote_id=lance.lote_id,
+                valor=lance.valor,
+                data_criacao=lance.data_criacao,
+            )
+            for lance in lances
+        ]
 
     def buscar_lance_por_id(self, usuario_id: int, lance_id: int) -> LanceResumo | None:
 

@@ -13,10 +13,11 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.deps import validar_usuario
 from app.db.session import get_db
-from app.schemas.lances import LanceResumo
+from app.schemas.lances import LancePublico, LanceResumo
 from app.schemas.usuarios import UsuarioResponse
 from app.services.lances import LanceService
 from app.services.lotes import LoteService
+from app.services.cadeia_lances import mapear_participantes
 from app.websockets.manage import connection_manager
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ router = APIRouter()
 
 def _listar_participantes(
     lances: list[LanceResumo],
+    aliases: dict[int, str],
 ) -> list[dict[str, int | str]]:
     melhores_lances: dict[int, LanceResumo] = {}
     for lance in sorted(lances, key=lambda item: (-item.valor, item.id)):
@@ -36,7 +38,7 @@ def _listar_participantes(
     )
     return [
         {
-            "licitante_id": licitante_id,
+            "participante": aliases[licitante_id],
             "posicao": posicao,
             "situacao": "ganhando" if posicao == 1 else "superado",
         }
@@ -45,32 +47,43 @@ def _listar_participantes(
 
 
 def _estado_usuario(
-    participantes: list[dict[str, int | str]], usuario_id: int
+    participantes: list[dict[str, int | str]], participante_usuario: str | None
 ) -> dict[str, int | str | None]:
     participante = next(
         (
             participante
             for participante in participantes
-            if participante["licitante_id"] == usuario_id
+            if participante["participante"] == participante_usuario
         ),
         None,
     )
-    if participante is None:
+    if participante is None or participante_usuario is None:
         return {
-            "id": usuario_id,
+            "participante": None,
             "posicao": None,
             "situacao": "sem_lance",
         }
 
     return {
-        "id": usuario_id,
+        "participante": participante_usuario,
         "posicao": participante["posicao"],
         "situacao": participante["situacao"],
     }
 
 
-def _lance_para_json(lance: LanceResumo | None) -> dict | None:
-    return lance.model_dump(mode="json") if lance is not None else None
+def _lance_para_json(
+    lance: LanceResumo | None,
+    aliases: dict[int, str],
+) -> dict | None:
+    if lance is None:
+        return None
+    return LancePublico(
+        id=lance.id,
+        participante=aliases[lance.licitante_id],
+        lote_id=lance.lote_id,
+        valor=lance.valor,
+        data_criacao=lance.data_criacao,
+    ).model_dump(mode="json")
 
 
 async def notificar_lance_criado(
@@ -78,7 +91,8 @@ async def notificar_lance_criado(
     db: Session,
 ) -> None:
     lances = LanceService(db).listar_lances_por_lote(lance.lote_id)
-    participantes = _listar_participantes(lances)
+    aliases = mapear_participantes(lances)
+    participantes = _listar_participantes(lances, aliases)
     lance_atual = lances[0] if lances else None
     lote = LoteService(db).buscar_lote_por_id(lance.lote_id)
 
@@ -87,8 +101,8 @@ async def notificar_lance_criado(
         {
             "tipo": "lance_atualizado",
             "lote_id": lance.lote_id,
-            "lance": _lance_para_json(lance),
-            "lance_atual": _lance_para_json(lance_atual),
+            "lance": _lance_para_json(lance, aliases),
+            "lance_atual": _lance_para_json(lance_atual, aliases),
             "valor_atual": str(lote.valor_atual),
             "data_fim": lote.data_fim.isoformat(),
             "participantes": participantes,
@@ -124,7 +138,8 @@ async def sala_de_leilao(
         return
 
     lances = LanceService(db).listar_lances_por_lote(lote_id)
-    participantes = _listar_participantes(lances)
+    aliases = mapear_participantes(lances)
+    participantes = _listar_participantes(lances, aliases)
     evento_inicial = {
         "tipo": "sala_inicial",
         "lote": {
@@ -133,10 +148,16 @@ async def sala_de_leilao(
             "data_fim": lote.data_fim.isoformat(),
             "valor_atual": str(lote.valor_atual),
         },
-        "lance_atual": _lance_para_json(lances[0] if lances else None),
-        "historico_lances": [lance.model_dump(mode="json") for lance in lances],
+        "lance_atual": _lance_para_json(
+            lances[0] if lances else None, aliases
+        ),
+        "historico_lances": [
+            _lance_para_json(lance, aliases) for lance in lances
+        ],
         "participantes": participantes,
-        "usuario": _estado_usuario(participantes, usuario.id),
+        "usuario": _estado_usuario(
+            participantes, aliases.get(usuario.id)
+        ),
     }
     db.close()
     await connection_manager.connect(lote_id, websocket)
