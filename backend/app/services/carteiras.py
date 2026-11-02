@@ -4,6 +4,7 @@ from decimal import Decimal
 from app.repositories import carteiras as repository
 from app.schemas.carteiras import CarteiraResponse, CarteiraDeposito
 from app.models.carteiras import Carteira
+from app.repositories.usuarios import buscar_usuario_para_atualizacao
 
 
 class CarteiraService:
@@ -13,7 +14,12 @@ class CarteiraService:
     def depositar_valor(
         self, usuario_id: int, deposito: CarteiraDeposito
     ) -> CarteiraResponse:
-        carteira = repository.buscar_carteira_por_usuario_id(self.db, usuario_id)
+        carteira = (
+            self.db.query(Carteira)
+            .filter(Carteira.usuario_id == usuario_id)
+            .with_for_update()
+            .one_or_none()
+        )
 
         if carteira is None:
             raise ValueError("Carteira não encontrada")
@@ -34,6 +40,10 @@ class CarteiraService:
         )
 
     def buscar_ou_criar_carteira(self, usuario_id: int) -> CarteiraResponse:
+        usuario = buscar_usuario_para_atualizacao(self.db, usuario_id)
+        if usuario is None:
+            raise ValueError("Usuário não encontrado")
+
         carteira = repository.buscar_carteira_por_usuario_id(self.db, usuario_id)
 
         if carteira is None:

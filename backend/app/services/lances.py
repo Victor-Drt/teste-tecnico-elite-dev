@@ -154,9 +154,16 @@ class LanceService:
                 f"Lance abaixo do mínimo. O próximo lance deve ser de pelo menos R$ {valor_formatado}."
             )
 
-        carteira = carteira_repository.buscar_carteira_por_usuario_id(
-            self.db, usuario.id
+        usuario_ids = {usuario.id}
+        if maior_lance is not None:
+            usuario_ids.add(maior_lance.licitante_id)
+        carteiras = carteira_repository.buscar_carteiras_para_atualizacao(
+            self.db, sorted(usuario_ids)
         )
+        carteiras_por_usuario = {
+            carteira.usuario_id: carteira for carteira in carteiras
+        }
+        carteira = carteiras_por_usuario.get(usuario.id)
 
         if carteira is None:
             raise ValueError("Carteira não encontrada")
@@ -168,13 +175,13 @@ class LanceService:
                 "Saldo insuficiente para este lance. Deposite ou informe um valor menor."
             )
 
-        carteira_lance_anterior = None
-        if maior_lance is not None:
-            carteira_lance_anterior = carteira_repository.buscar_carteira_por_usuario_id(
-                self.db, maior_lance.licitante_id
-            )
-            if carteira_lance_anterior is None:
-                raise ValueError("Carteira do licitante anterior não encontrada")
+        carteira_lance_anterior = (
+            carteiras_por_usuario.get(maior_lance.licitante_id)
+            if maior_lance is not None
+            else None
+        )
+        if maior_lance is not None and carteira_lance_anterior is None:
+            raise ValueError("Carteira do licitante anterior não encontrada")
 
         agora = datetime.now()
         if lote.data_fim <= agora:

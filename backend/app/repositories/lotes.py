@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.lotes import Lote, StatusLote
@@ -50,6 +52,61 @@ def buscar_lote_para_auditoria(db: Session, lote_id: int) -> Lote | None:
         )
         .one_or_none()
     )
+
+
+def listar_lotes_expirados(
+    db: Session, agora: datetime, limite: int = 100
+) -> list[int]:
+    return [
+        lote_id
+        for (lote_id,) in (
+            db.query(Lote.id)
+            .filter(
+                Lote.status == StatusLote.AO_VIVO,
+                Lote.data_fim <= agora,
+            )
+            .order_by(Lote.data_fim, Lote.id)
+            .limit(limite)
+            .all()
+        )
+    ]
+
+
+def buscar_lote_expirado_para_encerramento(
+    db: Session, lote_id: int, agora: datetime
+) -> Lote | None:
+    return (
+        db.query(Lote)
+        .options(selectinload(Lote.lances))
+        .filter(
+            Lote.id == lote_id,
+            Lote.status == StatusLote.AO_VIVO,
+            Lote.data_fim <= agora,
+        )
+        .with_for_update(skip_locked=True)
+        .one_or_none()
+    )
+
+
+def marcar_lote_concluido(
+    db: Session, lote_id: int, agora: datetime, vencedor_id: int | None
+) -> bool:
+    quantidade = (
+        db.query(Lote)
+        .filter(
+            Lote.id == lote_id,
+            Lote.status == StatusLote.AO_VIVO,
+            Lote.data_fim <= agora,
+        )
+        .update(
+            {
+                Lote.status: StatusLote.CONCLUIDO,
+                Lote.vencedor_id: vencedor_id,
+            },
+            synchronize_session=False,
+        )
+    )
+    return quantidade == 1
 
 
 def buscar_lote_por_leiloeiro_id(

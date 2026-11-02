@@ -4,6 +4,15 @@ from sqlalchemy.orm import Session
 from app.models.usuarios import Usuario
 
 
+def buscar_usuario_para_atualizacao(db: Session, usuario_id: int) -> Usuario | None:
+    return (
+        db.query(Usuario)
+        .filter(Usuario.id == usuario_id)
+        .with_for_update()
+        .one_or_none()
+    )
+
+
 def criar_usuario(db: Session, usuario: Usuario) -> Usuario | None:
 
     query = select(Usuario).where(Usuario.email == usuario.email)

@@ -1,10 +1,19 @@
 import hashlib
 import json
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.models.carteiras import Carteira
+from app.models.lances import Lance
+from app.models.liquidacoes import LiquidacaoLote
 from app.models.lotes import Lote, StatusLote
-from app.schemas.usuarios import UsuarioResponse
+from app.repositories import carteiras as carteira_repository
+from app.repositories import lotes as repository
+from app.repositories import usuarios as usuario_repository
+from app.schemas.itens import ItemResumo
 from app.schemas.lotes import (
     AuditoriaPublicaResponse,
     LanceAuditoriaPublica,
@@ -15,8 +24,7 @@ from app.schemas.lotes import (
     LoteUpdate,
     LoteVitrineResponse,
 )
-from app.schemas.itens import ItemResumo
-from app.repositories import lotes as repository
+from app.schemas.usuarios import UsuarioResponse
 
 
 class LoteRegraNegocioError(Exception):
@@ -25,6 +33,13 @@ class LoteRegraNegocioError(Exception):
 
 class AuditoriaPublicaInconsistente(Exception):
     pass
+
+
+@dataclass(frozen=True)
+class ResultadoEncerramento:
+    lote_id: int
+    vencedor_id: int | None
+    valor_liquidado: Decimal
 
 
 class LoteService:
@@ -145,6 +160,116 @@ class LoteService:
 
         return LoteDetalhesResponse.model_validate(lote)
 
+    def encerrar_lote_expirado(
+        self, lote_id: int, agora: datetime | None = None
+    ) -> ResultadoEncerramento | None:
+        agora = agora or datetime.now()
+
+        try:
+            lote = repository.buscar_lote_expirado_para_encerramento(
+                self.db, lote_id, agora
+            )
+            if lote is None:
+                return None
+
+            lance_vencedor = max(
+                lote.lances,
+                key=lambda lance: (lance.valor, lance.id),
+                default=None,
+            )
+            vencedor_id = (
+                lance_vencedor.licitante_id if lance_vencedor is not None else None
+            )
+            valor_liquidado = (
+                lance_vencedor.valor
+                if lance_vencedor is not None
+                else Decimal("0.00")
+            )
+            if lance_vencedor is None and lote.valor_atual != lote.valor_inicial:
+                raise ValueError(
+                    f"O lote {lote.id} não possui lances, mas seu valor atual "
+                    "difere do valor inicial."
+                )
+            if lance_vencedor is not None and lance_vencedor.valor != lote.valor_atual:
+                raise ValueError(
+                    f"O maior lance do lote {lote.id} não corresponde ao valor atual."
+                )
+
+            if not repository.marcar_lote_concluido(
+                self.db, lote.id, agora, vencedor_id
+            ):
+                self.db.rollback()
+                return None
+
+            if lance_vencedor is not None:
+                if vencedor_id == lote.leiloeiro_id:
+                    raise ValueError(
+                        f"O leiloeiro não pode ser vencedor do próprio lote {lote.id}."
+                    )
+
+                leiloeiro = usuario_repository.buscar_usuario_para_atualizacao(
+                    self.db, lote.leiloeiro_id
+                )
+                if leiloeiro is None:
+                    raise ValueError(
+                        f"Leiloeiro do lote {lote.id} não foi encontrado."
+                    )
+
+                carteiras = carteira_repository.buscar_carteiras_para_atualizacao(
+                    self.db, sorted({lote.leiloeiro_id, vencedor_id})
+                )
+                carteiras_por_usuario = {
+                    carteira.usuario_id: carteira for carteira in carteiras
+                }
+                carteira_vencedor = carteiras_por_usuario.get(vencedor_id)
+                if carteira_vencedor is None:
+                    raise ValueError(
+                        f"Carteira do vencedor do lote {lote.id} não foi encontrada."
+                    )
+
+                carteira_leiloeiro = carteiras_por_usuario.get(lote.leiloeiro_id)
+                if carteira_leiloeiro is None:
+                    carteira_leiloeiro = Carteira(
+                        usuario_id=lote.leiloeiro_id,
+                        saldo_total=Decimal("0.00"),
+                        saldo_comprometido=Decimal("0.00"),
+                    )
+                    self.db.add(carteira_leiloeiro)
+                    self.db.flush()
+
+                if carteira_vencedor.saldo_total < valor_liquidado:
+                    raise ValueError(
+                        f"Saldo total insuficiente para liquidar o lote {lote.id}."
+                    )
+                if carteira_vencedor.saldo_comprometido < valor_liquidado:
+                    raise ValueError(
+                        f"Saldo comprometido insuficiente para liquidar o lote {lote.id}."
+                    )
+
+                carteira_vencedor.saldo_total -= valor_liquidado
+                carteira_vencedor.saldo_comprometido -= valor_liquidado
+                carteira_leiloeiro.saldo_total += valor_liquidado
+
+            liquidacao = LiquidacaoLote(
+                lote_id=lote.id,
+                leiloeiro_id=lote.leiloeiro_id,
+                vencedor_id=vencedor_id,
+                lance_id=lance_vencedor.id if lance_vencedor is not None else None,
+                valor=valor_liquidado,
+                data_liquidacao=agora,
+            )
+            self.db.add(liquidacao)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+        return ResultadoEncerramento(
+            lote_id=lote_id,
+            vencedor_id=vencedor_id,
+            valor_liquidado=valor_liquidado,
+        )
+
     def listar_lotes(
         self,
         usuario: UsuarioResponse,
@@ -167,12 +292,22 @@ class LoteService:
     ) -> LoteResumo:
         dados = data.model_dump(exclude_unset=True)
 
-        if dados.get("status") == StatusLote.CANCELADO:
-            lote = repository.buscar_lote_por_leiloeiro_id(
-                self.db, leiloeiro_id, lote_id
+        lote = repository.buscar_lote_por_leiloeiro_id(
+            self.db, leiloeiro_id, lote_id
+        )
+        if lote is None:
+            raise ValueError("Lote não encontrado")
+        if lote.status == StatusLote.CONCLUIDO:
+            raise LoteRegraNegocioError(
+                "Um lote concluído não pode ser alterado"
             )
-            if lote is None:
-                raise ValueError("Lote não encontrado")
+
+        if dados.get("status") == StatusLote.CONCLUIDO:
+            raise LoteRegraNegocioError(
+                "Lotes são concluídos automaticamente ao atingir o prazo final"
+            )
+
+        if dados.get("status") == StatusLote.CANCELADO:
             if lote.lances:
                 raise LoteRegraNegocioError(
                     "Não é possível cancelar um lote que já recebeu lances"

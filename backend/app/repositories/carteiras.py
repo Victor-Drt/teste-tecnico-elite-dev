@@ -4,6 +4,18 @@ from decimal import Decimal
 from app.models.carteiras import Carteira
 
 
+def buscar_carteiras_para_atualizacao(
+    db: Session, usuario_ids: list[int]
+) -> list[Carteira]:
+    return (
+        db.query(Carteira)
+        .filter(Carteira.usuario_id.in_(usuario_ids))
+        .order_by(Carteira.usuario_id)
+        .with_for_update()
+        .all()
+    )
+
+
 def salvar_carteira(db: Session, carteira: Carteira) -> Carteira:
     db.add(carteira)
     db.commit()
