@@ -21,6 +21,7 @@ export interface LoteListagem {
 }
 
 export interface LoteVitrine extends LoteListagem {
+  incremento_minimo: string;
   item: ItemLoteListagem & {
     descricao: string | null;
   };

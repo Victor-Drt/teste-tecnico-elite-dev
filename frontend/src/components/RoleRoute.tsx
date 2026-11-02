@@ -13,7 +13,7 @@ const RoleRoute = ({ role, redirectTo }: RoleRouteProps) => {
     return <Navigate replace to={redirectTo} />;
   }
 
-  return <Outlet />;
+  return <Outlet context={user} />;
 };
 
 export default RoleRoute;
