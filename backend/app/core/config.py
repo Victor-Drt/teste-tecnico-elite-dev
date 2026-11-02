@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     API_EXTERNA_URL: str
     SYNC_ITENS_INTERVAL_SECONDS: int
+    AUCTION_CLOSE_CHECK_INTERVAL_SECONDS: int = Field(default=1, gt=0)
     FRONTEND_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
