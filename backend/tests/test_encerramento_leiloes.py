@@ -159,3 +159,35 @@ def test_nao_concluir_lote_se_reserva_do_vencedor_estiver_inconsistente(
     assert db_session.query(Carteira).filter_by(
         usuario_id=lote_ao_vivo.leiloeiro_id
     ).count() == 0
+
+
+@pytest.mark.lotes
+def test_nao_liquidar_lote_se_carteira_do_vencedor_nao_existir(
+    lote_ao_vivo,
+    usuario_licitante,
+    db_session,
+):
+    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
+    lote_ao_vivo.valor_atual = Decimal("150.00")
+    db_session.add(
+        Lance(
+            licitante_id=usuario_licitante.id,
+            lote_id=lote_ao_vivo.id,
+            valor=Decimal("150.00"),
+        )
+    )
+    db_session.commit()
+
+    with pytest.raises(
+        ValueError,
+        match=f"Carteira do vencedor {usuario_licitante.id} do lote {lote_ao_vivo.id}",
+    ):
+        LoteService(db_session).encerrar_lote_expirado(lote_ao_vivo.id)
+
+    db_session.refresh(lote_ao_vivo)
+    assert lote_ao_vivo.status == StatusLote.AO_VIVO
+    assert lote_ao_vivo.vencedor_id is None
+    assert db_session.query(LiquidacaoLote).count() == 0
+    assert db_session.query(Carteira).filter_by(
+        usuario_id=usuario_licitante.id
+    ).count() == 0

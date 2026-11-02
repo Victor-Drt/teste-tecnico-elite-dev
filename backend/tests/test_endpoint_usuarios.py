@@ -1,8 +1,12 @@
 import pytest
 
+from app.models.carteiras import Carteira
+
 
 @pytest.mark.usuarios
-def test_deve_criar_usuario_com_sucesso_quando_dados_forem_validos(client):
+def test_deve_criar_usuario_com_sucesso_quando_dados_forem_validos(
+    client, db_session
+):
 
     payload = {
         "nome": "UserTest",
@@ -15,6 +19,13 @@ def test_deve_criar_usuario_com_sucesso_quando_dados_forem_validos(client):
 
     assert response.status_code == 201
     assert response.json()["nome"] == "UserTest"
+    carteira = (
+        db_session.query(Carteira)
+        .filter(Carteira.usuario_id == response.json()["id"])
+        .one()
+    )
+    assert carteira.saldo_total == 0
+    assert carteira.saldo_comprometido == 0
 
 
 @pytest.mark.usuarios
