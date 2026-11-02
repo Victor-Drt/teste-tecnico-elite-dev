@@ -30,6 +30,7 @@ def db_session() -> Iterator[Session]:
     from app.models.carteiras import Carteira
     from app.models.itens import Item
     from app.models.lances import Lance
+    from app.models.liquidacoes import LiquidacaoLote
     from app.models.lotes import Lote
     from app.models.usuarios import Usuario
 
@@ -46,6 +47,7 @@ def db_session() -> Iterator[Session]:
             Lote.__table__,
             Carteira.__table__,
             Lance.__table__,
+            LiquidacaoLote.__table__,
         ],
     )
     session = Session(bind=engine)
@@ -62,6 +64,7 @@ def db_session() -> Iterator[Session]:
                 Lote.__table__,
                 Carteira.__table__,
                 Lance.__table__,
+                LiquidacaoLote.__table__,
             ],
         )
         engine.dispose()

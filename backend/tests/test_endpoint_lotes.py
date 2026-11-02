@@ -330,6 +330,22 @@ def test_nao_deve_cancelar_lote_que_ja_recebeu_lances(
 
 
 @pytest.mark.lotes
+def test_leiloeiro_nao_pode_concluir_lote_manualmente(
+    client, cabecalho_autenticado, lote_teste, db_session
+):
+    response = client.patch(
+        f"/api/v1/lotes/{lote_teste.id}",
+        json={"status": "concluido"},
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 409
+    assert "automaticamente" in response.json()["detail"]
+    db_session.refresh(lote_teste)
+    assert lote_teste.status != StatusLote.CONCLUIDO
+
+
+@pytest.mark.lotes
 def test_deve_cancelar_lote_sem_lances(
     client, cabecalho_autenticado, lote_teste, db_session
 ):
