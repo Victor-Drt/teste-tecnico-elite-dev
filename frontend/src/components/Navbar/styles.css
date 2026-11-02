@@ -1,0 +1,248 @@
+.auction-navbar {
+  align-items: center;
+  background: #2c293d;
+  color: #fff;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  min-height: 78px;
+  padding: 0 clamp(1.25rem, 6vw, 6rem);
+  position: relative;
+  z-index: 5;
+}
+
+.auction-navbar__brand {
+  color: inherit;
+  font-family: "Lobster Two", cursive;
+  font-size: clamp(1.7rem, 2.5vw, 2.1rem);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.auction-navbar__links {
+  align-items: stretch;
+  align-self: stretch;
+  display: flex;
+  gap: clamp(1rem, 2.5vw, 2.5rem);
+}
+
+.auction-navbar__link {
+  align-items: center;
+  border-bottom: 3px solid transparent;
+  color: #d3d1dc;
+  display: inline-flex;
+  font-size: 0.94rem;
+  font-weight: 550;
+  padding: 3px 0 0;
+  text-decoration: none;
+  transition: color 160ms ease, border-color 160ms ease;
+  white-space: nowrap;
+}
+
+.auction-navbar__link:hover,
+.auction-navbar__link.is-active {
+  border-bottom-color: #8885ff;
+  color: #fff;
+}
+
+.auction-navbar__account {
+  justify-self: end;
+  position: relative;
+}
+
+.auction-navbar__profile {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.3rem;
+}
+
+.auction-navbar__profile > span,
+.account-popover__avatar {
+  align-items: center;
+  background: #7772f5;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 700;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.auction-navbar__profile svg {
+  color: #c6c4d1;
+  font-size: 0.9rem;
+}
+
+.auction-navbar__profile:focus-visible,
+.auction-navbar__brand:focus-visible,
+.auction-navbar__link:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 4px;
+}
+
+.account-popover {
+  background: #fff;
+  border: 1px solid #eeedf2;
+  border-radius: 0.9rem;
+  box-shadow: 0 16px 40px rgb(26 23 43 / 18%);
+  color: #2c293d;
+  min-width: 290px;
+  padding: 1rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.85rem);
+  z-index: 10;
+}
+
+.account-popover::before {
+  border-bottom: 9px solid #fff;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  content: "";
+  position: absolute;
+  right: 1.05rem;
+  top: -8px;
+}
+
+.account-popover__identity {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.15rem 0.1rem 1rem;
+}
+
+.account-popover__identity > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.account-popover__identity strong,
+.account-popover__identity span:not(.account-popover__avatar) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-popover__identity strong {
+  font-size: 0.95rem;
+}
+
+.account-popover__identity span:not(.account-popover__avatar) {
+  color: #777584;
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+
+.account-popover__balance {
+  align-items: center;
+  background: #f5f4fb;
+  border-radius: 0.65rem;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.9rem;
+}
+
+.account-popover__balance > span {
+  align-items: center;
+  color: #646171;
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.4rem;
+}
+
+.account-popover__balance > span svg {
+  color: #6965e9;
+  font-size: 1rem;
+}
+
+.account-popover__balance strong {
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.account-popover__error {
+  color: #b42318;
+  font-size: 0.8rem;
+  margin: 0.75rem 0 0;
+}
+
+.account-popover__logout {
+  background: #fff;
+  border: 1px solid #e4e2eb;
+  border-radius: 0.55rem;
+  color: #403c56;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 0.8rem;
+  padding: 0.65rem;
+  width: 100%;
+}
+
+.account-popover__logout:hover {
+  background: #f7f6fa;
+}
+
+.account-popover__logout:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.account-popover__logout:focus-visible {
+  outline: 3px solid #818cf8;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .auction-navbar {
+    gap: 0.8rem;
+    grid-template-columns: 1fr auto;
+    min-height: 70px;
+    padding-inline: 1rem;
+  }
+
+  .auction-navbar__brand {
+    font-size: 1.65rem;
+  }
+
+  .auction-navbar__links {
+    background: #2c293d;
+    border-top: 1px solid rgb(255 255 255 / 10%);
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    margin-inline: -1rem;
+    min-height: 48px;
+    padding-inline: 0.75rem;
+  }
+
+  .auction-navbar__link {
+    font-size: 0.82rem;
+  }
+
+  .auction-navbar__profile > span {
+    height: 38px;
+    width: 38px;
+  }
+}
+
+@media (max-width: 380px) {
+  .auction-navbar__links {
+    gap: 0.85rem;
+  }
+
+  .auction-navbar__link {
+    font-size: 0.75rem;
+  }
+}

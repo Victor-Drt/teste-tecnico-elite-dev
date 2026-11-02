@@ -5,3 +5,7 @@ import { axiosClient } from "./api";
 export async function login(email: string, senha: string): Promise<void> {
   await axiosClient.post<LoginResponse>("auth/token", { email, senha });
 }
+
+export async function logout(): Promise<void> {
+  await axiosClient.post("auth/logout");
+}
