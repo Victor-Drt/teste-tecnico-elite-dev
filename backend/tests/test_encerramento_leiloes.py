@@ -7,6 +7,9 @@ from app.models.carteiras import Carteira
 from app.models.lances import Lance
 from app.models.liquidacoes import LiquidacaoLote
 from app.models.lotes import StatusLote
+from app.schemas.lances import LanceCreate
+from app.schemas.usuarios import UsuarioResponse
+from app.services.lances import LanceService
 from app.services.lotes import LoteService
 
 
@@ -14,26 +17,30 @@ from app.services.lotes import LoteService
 def test_encerrar_lote_expirado_liquida_lance_vencedor_uma_unica_vez(
     lote_ao_vivo,
     usuario_licitante,
+    outro_usuario_licitante,
     usuario_teste,
     carteira_licitante,
+    carteira_outro_licitante,
     db_session,
 ):
-    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
-    lote_ao_vivo.valor_atual = Decimal("150.00")
-    carteira_licitante.saldo_total = Decimal("500.00")
-    carteira_licitante.saldo_comprometido = Decimal("150.00")
-    lance = Lance(
-        licitante_id=usuario_licitante.id,
-        lote_id=lote_ao_vivo.id,
-        valor=Decimal("150.00"),
+    lance_service = LanceService(db_session)
+    lance_service.criar_lance(
+        UsuarioResponse.model_validate(usuario_licitante),
+        LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("120.00")),
     )
-    db_session.add(lance)
+
+    lance = lance_service.criar_lance(
+        UsuarioResponse.model_validate(outro_usuario_licitante),
+        LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("150.00")),
+    )
+    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
     db_session.commit()
 
     resultado = LoteService(db_session).encerrar_lote_expirado(lote_ao_vivo.id)
 
     db_session.refresh(lote_ao_vivo)
     db_session.refresh(carteira_licitante)
+    db_session.refresh(carteira_outro_licitante)
     carteira_leiloeiro = (
         db_session.query(Carteira)
         .filter(Carteira.usuario_id == usuario_teste.id)
@@ -46,14 +53,17 @@ def test_encerrar_lote_expirado_liquida_lance_vencedor_uma_unica_vez(
     )
 
     assert resultado is not None
-    assert resultado.vencedor_id == usuario_licitante.id
+    assert resultado.vencedor_id == outro_usuario_licitante.id
     assert resultado.valor_liquidado == Decimal("150.00")
     assert lote_ao_vivo.status == StatusLote.CONCLUIDO
-    assert lote_ao_vivo.vencedor_id == usuario_licitante.id
-    assert carteira_licitante.saldo_total == Decimal("350.00")
+    assert lote_ao_vivo.vencedor_id == outro_usuario_licitante.id
+    assert carteira_licitante.saldo_total == Decimal("1000.00")
     assert carteira_licitante.saldo_comprometido == Decimal("0.00")
+    assert carteira_outro_licitante.saldo_total == Decimal("850.00")
+    assert carteira_outro_licitante.saldo_comprometido == Decimal("0.00")
     assert carteira_leiloeiro.saldo_total == Decimal("150.00")
-    assert comprovante.vencedor_id == usuario_licitante.id
+    assert comprovante.vencedor_id == outro_usuario_licitante.id
+    assert comprovante.leiloeiro_id == usuario_teste.id
     assert comprovante.lance_id == lance.id
     assert comprovante.valor == Decimal("150.00")
 
@@ -63,6 +73,9 @@ def test_encerrar_lote_expirado_liquida_lance_vencedor_uma_unica_vez(
 
     assert resultado_repetido is None
     assert db_session.query(LiquidacaoLote).count() == 1
+    db_session.refresh(carteira_outro_licitante)
+    assert carteira_outro_licitante.saldo_total == Decimal("850.00")
+    assert carteira_outro_licitante.saldo_comprometido == Decimal("0.00")
     assert carteira_leiloeiro.saldo_total == Decimal("150.00")
 
 
@@ -74,11 +87,18 @@ def test_encerrar_lote_expirado_sem_lances_conclui_sem_transferencia(
 ):
     lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
     valor_inicial = lote_ao_vivo.valor_atual
+    carteira_leiloeiro = Carteira(
+        usuario_id=usuario_teste.id,
+        saldo_total=Decimal("250.00"),
+        saldo_comprometido=Decimal("0.00"),
+    )
+    db_session.add(carteira_leiloeiro)
     db_session.commit()
 
     resultado = LoteService(db_session).encerrar_lote_expirado(lote_ao_vivo.id)
 
     db_session.refresh(lote_ao_vivo)
+    db_session.refresh(carteira_leiloeiro)
     comprovante = (
         db_session.query(LiquidacaoLote)
         .filter(LiquidacaoLote.lote_id == lote_ao_vivo.id)
@@ -91,7 +111,8 @@ def test_encerrar_lote_expirado_sem_lances_conclui_sem_transferencia(
     assert lote_ao_vivo.status == StatusLote.CONCLUIDO
     assert lote_ao_vivo.vencedor_id is None
     assert lote_ao_vivo.valor_atual == valor_inicial
-    assert db_session.query(Carteira).filter_by(usuario_id=usuario_teste.id).count() == 0
+    assert carteira_leiloeiro.saldo_total == Decimal("250.00")
+    assert carteira_leiloeiro.saldo_comprometido == Decimal("0.00")
     assert comprovante.vencedor_id is None
     assert comprovante.lance_id is None
     assert comprovante.valor == Decimal("0.00")
