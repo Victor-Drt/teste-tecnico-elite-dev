@@ -5,6 +5,7 @@ from typing import Annotated
 from app.schemas.usuarios import UsuarioResponse
 from app.models.lotes import StatusLote
 from app.schemas.lotes import (
+    AuditoriaPublicaResponse,
     LoteCreate,
     LoteDetalhesResponse,
     LoteListagemResponse,
@@ -13,7 +14,11 @@ from app.schemas.lotes import (
 )
 from app.api.v1.deps import verificar_role, get_current_user
 from app.db.session import get_db
-from app.services.lotes import LoteRegraNegocioError, LoteService
+from app.services.lotes import (
+    AuditoriaPublicaInconsistente,
+    LoteRegraNegocioError,
+    LoteService,
+)
 
 router = APIRouter()
 
@@ -82,6 +87,31 @@ def buscar_lote_para_vitrine(
 
     try:
         return service.buscar_lote_para_vitrine(lote_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "/{lote_id}/auditoria",
+    status_code=200,
+    response_model=AuditoriaPublicaResponse,
+)
+def buscar_auditoria_publica(
+    lote_id: int,
+    db: Session = Depends(get_db),
+) -> AuditoriaPublicaResponse:
+    service = LoteService(db)
+
+    try:
+        return service.buscar_auditoria_publica(lote_id)
+    except AuditoriaPublicaInconsistente as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

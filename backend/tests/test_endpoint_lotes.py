@@ -570,3 +570,90 @@ def test_deve_retornar_401_ao_listar_arremates_sem_autenticacao(client):
 
     assert response.status_code == 401
     assert "detail" in response.json()
+
+
+@pytest.mark.lotes
+def test_auditoria_publica_retorna_dados_anonimizados_sem_autenticacao(
+    client,
+    lote_teste,
+    usuario_licitante,
+    outro_usuario_licitante,
+    db_session,
+):
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+
+    lote_teste.status = StatusLote.CONCLUIDO
+    lote_teste.vencedor_id = outro_usuario_licitante.id
+    lote_teste.valor_atual = Decimal("180.00")
+    data_base = datetime(2030, 1, 1, 10)
+    db_session.add_all(
+        [
+            Lance(
+                licitante_id=usuario_licitante.id,
+                lote_id=lote_teste.id,
+                valor=Decimal("120.00"),
+                data_criacao=data_base,
+            ),
+            Lance(
+                licitante_id=outro_usuario_licitante.id,
+                lote_id=lote_teste.id,
+                valor=Decimal("180.00"),
+                data_criacao=data_base + timedelta(minutes=1),
+            ),
+        ]
+    )
+    db_session.commit()
+
+    response = client.get(f"/api/v1/lotes/{lote_teste.id}/auditoria")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["lote_id"] == lote_teste.id
+    assert data["item"]["titulo"] == lote_teste.item.titulo
+    assert data["valor_arrematado"] == "180.00"
+    assert data["vencedor"] == "Participante #2"
+    assert data["total_participantes"] == 2
+    assert data["total_lances"] == 2
+    assert [lance["participante"] for lance in data["lances"]] == [
+        "Participante #1",
+        "Participante #2",
+    ]
+    assert all("licitante_id" not in lance for lance in data["lances"])
+    assert "vencedor_id" not in data
+    assert len(data["hash_sha256"]) == 64
+    assert client.get(f"/api/v1/lotes/{lote_teste.id}/auditoria").json()[
+        "hash_sha256"
+    ] == data["hash_sha256"]
+
+
+@pytest.mark.lotes
+def test_auditoria_publica_nao_disponibiliza_lotes_nao_concluidos(
+    client, lote_teste
+):
+    response = client.get(f"/api/v1/lotes/{lote_teste.id}/auditoria")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.lotes
+def test_auditoria_publica_rejeita_resultado_inconsistente(
+    client, lote_teste, usuario_licitante, db_session
+):
+    from decimal import Decimal
+
+    lote_teste.status = StatusLote.CONCLUIDO
+    lote_teste.vencedor_id = usuario_licitante.id
+    lote_teste.valor_atual = Decimal("180.00")
+    db_session.add(
+        Lance(
+            licitante_id=usuario_licitante.id,
+            lote_id=lote_teste.id,
+            valor=Decimal("120.00"),
+        )
+    )
+    db_session.commit()
+
+    response = client.get(f"/api/v1/lotes/{lote_teste.id}/auditoria")
+
+    assert response.status_code == 409

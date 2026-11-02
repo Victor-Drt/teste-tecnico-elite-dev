@@ -39,6 +39,25 @@ class LoteVitrineResponse(LoteResumo):
     item: ItemDetalhesVitrine
 
 
+class LanceAuditoriaPublica(BaseModel):
+    participante: str
+    valor: Decimal
+    data_criacao: datetime
+
+
+class AuditoriaPublicaResponse(BaseModel):
+    lote_id: int
+    item: ItemResumo
+    data_inicio: datetime
+    data_fim: datetime
+    valor_arrematado: Decimal
+    vencedor: str
+    total_participantes: int
+    total_lances: int
+    lances: list[LanceAuditoriaPublica]
+    hash_sha256: str
+
+
 class LoteDetalhesResponse(LoteResumo):
     valor_inicial: Decimal
     incremento_minimo: Decimal

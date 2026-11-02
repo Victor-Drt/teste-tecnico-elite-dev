@@ -1,8 +1,13 @@
+import hashlib
+import json
+
 from sqlalchemy.orm import Session
 
 from app.models.lotes import Lote, StatusLote
 from app.schemas.usuarios import UsuarioResponse
 from app.schemas.lotes import (
+    AuditoriaPublicaResponse,
+    LanceAuditoriaPublica,
     LoteCreate,
     LoteDetalhesResponse,
     LoteListagemResponse,
@@ -10,10 +15,15 @@ from app.schemas.lotes import (
     LoteUpdate,
     LoteVitrineResponse,
 )
+from app.schemas.itens import ItemResumo
 from app.repositories import lotes as repository
 
 
 class LoteRegraNegocioError(Exception):
+    pass
+
+
+class AuditoriaPublicaInconsistente(Exception):
     pass
 
 
@@ -45,6 +55,88 @@ class LoteService:
             raise ValueError("Lote não encontrado")
 
         return LoteVitrineResponse.model_validate(lote)
+
+    def buscar_auditoria_publica(self, lote_id: int) -> AuditoriaPublicaResponse:
+        lote = repository.buscar_lote_para_auditoria(self.db, lote_id)
+        if lote is None:
+            raise ValueError("Auditoria pública não encontrada")
+
+        lances = sorted(
+            lote.lances,
+            key=lambda lance: (lance.data_criacao, lance.id),
+        )
+        participante_por_id: dict[int, str] = {}
+        lances_publicos: list[LanceAuditoriaPublica] = []
+
+        for lance in lances:
+            participante = participante_por_id.get(lance.licitante_id)
+            if participante is None:
+                participante = f"Participante #{len(participante_por_id) + 1}"
+                participante_por_id[lance.licitante_id] = participante
+            lances_publicos.append(
+                LanceAuditoriaPublica(
+                    participante=participante,
+                    valor=lance.valor,
+                    data_criacao=lance.data_criacao,
+                )
+            )
+
+        if lote.vencedor_id is None:
+            raise AuditoriaPublicaInconsistente(
+                "O lote concluído não possui vencedor registrado."
+            )
+
+        vencedor = participante_por_id.get(lote.vencedor_id)
+        if vencedor is None:
+            raise AuditoriaPublicaInconsistente(
+                "O lote concluído não possui lance registrado para o vencedor."
+            )
+
+        maior_valor = max(lance.valor for lance in lances)
+        if (
+            maior_valor != lote.valor_atual
+            or not any(
+                lance.licitante_id == lote.vencedor_id
+                and lance.valor == maior_valor
+                for lance in lances
+            )
+        ):
+            raise AuditoriaPublicaInconsistente(
+                "Os dados de encerramento não correspondem ao histórico de lances."
+            )
+
+        item = ItemResumo.model_validate(lote.item)
+        public_data = {
+            "lote_id": lote.id,
+            "item": item.model_dump(mode="json"),
+            "data_inicio": lote.data_inicio.isoformat(),
+            "data_fim": lote.data_fim.isoformat(),
+            "valor_arrematado": format(lote.valor_atual, ".2f"),
+            "vencedor": vencedor,
+            "total_participantes": len(participante_por_id),
+            "total_lances": len(lances_publicos),
+            "lances": [
+                {
+                    "participante": lance.participante,
+                    "valor": format(lance.valor, ".2f"),
+                    "data_criacao": lance.data_criacao.isoformat(),
+                }
+                for lance in lances_publicos
+            ],
+        }
+        hash_sha256 = hashlib.sha256(
+            json.dumps(
+                public_data,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+
+        return AuditoriaPublicaResponse(
+            **public_data,
+            hash_sha256=hash_sha256,
+        )
 
     def buscar_lote_ao_vivo(self, lote_id: int) -> LoteDetalhesResponse:
         lote = repository.buscar_lote_aberto_por_id(self.db, lote_id)

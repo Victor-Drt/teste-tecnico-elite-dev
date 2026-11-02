@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.lotes import Lote, StatusLote
 
@@ -34,6 +34,19 @@ def buscar_lote_para_vitrine(db: Session, lote_id: int) -> Lote | None:
         .filter(
             Lote.id == lote_id,
             Lote.status != StatusLote.CANCELADO,
+        )
+        .one_or_none()
+    )
+
+
+def buscar_lote_para_auditoria(db: Session, lote_id: int) -> Lote | None:
+    return (
+        db.query(Lote)
+        .options(joinedload(Lote.item), selectinload(Lote.lances))
+        .filter(
+            Lote.id == lote_id,
+            Lote.status == StatusLote.CONCLUIDO,
+            Lote.vencedor_id.is_not(None),
         )
         .one_or_none()
     )
