@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, ForeignKey, DateTime, Numeric, func
+from sqlalchemy import Integer, ForeignKey, DateTime, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from decimal import Decimal
@@ -13,6 +13,8 @@ class Lance(Base):
     licitante_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     lote_id: Mapped[int] = mapped_column(ForeignKey("lotes.id"), nullable=False)
     valor: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    hash_anterior: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    hash_evento: Mapped[str | None] = mapped_column(String(64), nullable=True)
     data_criacao: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

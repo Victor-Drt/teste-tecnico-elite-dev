@@ -1,7 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, UniqueConstraint, func
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -25,6 +33,10 @@ class LiquidacaoLote(Base):
         ForeignKey("lances.id"), nullable=True
     )
     valor: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    hash_cadeia_lances: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
+    quantidade_lances: Mapped[int | None] = mapped_column(Integer, nullable=True)
     data_liquidacao: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

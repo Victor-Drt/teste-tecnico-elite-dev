@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from decimal import Decimal
@@ -43,6 +45,8 @@ class LanceAuditoriaPublica(BaseModel):
     participante: str
     valor: Decimal
     data_criacao: datetime
+    hash_anterior: str | None
+    hash_evento: str | None
 
 
 class AuditoriaPublicaResponse(BaseModel):
@@ -56,6 +60,9 @@ class AuditoriaPublicaResponse(BaseModel):
     total_lances: int
     lances: list[LanceAuditoriaPublica]
     hash_sha256: str
+    integridade_cadeia: Literal["verificada", "inconsistente", "nao_verificada"]
+    hash_cadeia_lances: str | None
+    quantidade_lances_ancorada: int | None
 
 
 class ComprovanteArremateResponse(BaseModel):

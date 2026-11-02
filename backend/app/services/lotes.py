@@ -13,6 +13,13 @@ from app.models.lotes import Lote, StatusLote
 from app.repositories import carteiras as carteira_repository
 from app.repositories import lotes as repository
 from app.repositories import usuarios as usuario_repository
+from app.services.cadeia_lances import (
+    HASH_INICIAL_CADEIA,
+    mapear_participantes,
+    obter_sufixo_cadeia,
+    ordenar_lances,
+    verificar_cadeia_lances,
+)
 from app.schemas.itens import ItemResumo
 from app.schemas.lotes import (
     AuditoriaPublicaResponse,
@@ -81,23 +88,19 @@ class LoteService:
         if lote is None:
             raise ValueError("Auditoria pública não encontrada")
 
-        lances = sorted(
-            lote.lances,
-            key=lambda lance: (lance.data_criacao, lance.id),
-        )
-        participante_por_id: dict[int, str] = {}
+        lances = ordenar_lances(lote.lances)
+        participante_por_id = mapear_participantes(lances)
         lances_publicos: list[LanceAuditoriaPublica] = []
 
         for lance in lances:
-            participante = participante_por_id.get(lance.licitante_id)
-            if participante is None:
-                participante = f"Participante #{len(participante_por_id) + 1}"
-                participante_por_id[lance.licitante_id] = participante
+            participante = participante_por_id[lance.licitante_id]
             lances_publicos.append(
                 LanceAuditoriaPublica(
                     participante=participante,
                     valor=lance.valor,
                     data_criacao=lance.data_criacao,
+                    hash_anterior=lance.hash_anterior,
+                    hash_evento=lance.hash_evento,
                 )
             )
 
@@ -140,10 +143,34 @@ class LoteService:
                     "participante": lance.participante,
                     "valor": format(lance.valor, ".2f"),
                     "data_criacao": lance.data_criacao.isoformat(),
+                    "hash_anterior": lance.hash_anterior,
+                    "hash_evento": lance.hash_evento,
                 }
                 for lance in lances_publicos
             ],
         }
+        liquidacao = repository.buscar_liquidacao_lote(self.db, lote_id)
+        hash_ancora = (
+            liquidacao.hash_cadeia_lances if liquidacao is not None else None
+        )
+        quantidade_ancorada = (
+            liquidacao.quantidade_lances if liquidacao is not None else None
+        )
+        if hash_ancora is None or quantidade_ancorada is None:
+            integridade_cadeia = "nao_verificada"
+        elif quantidade_ancorada != len(lances):
+            integridade_cadeia = "inconsistente"
+        else:
+            cadeia = obter_sufixo_cadeia(lances)
+            if cadeia is None or not verificar_cadeia_lances(cadeia, hash_ancora):
+                integridade_cadeia = "inconsistente"
+            elif len(cadeia) != len(lances):
+                integridade_cadeia = "nao_verificada"
+            else:
+                integridade_cadeia = "verificada"
+        public_data["integridade_cadeia"] = integridade_cadeia
+        public_data["hash_cadeia_lances"] = hash_ancora
+        public_data["quantidade_lances_ancorada"] = quantidade_ancorada
         hash_sha256 = hashlib.sha256(
             json.dumps(
                 public_data,
@@ -293,12 +320,22 @@ class LoteService:
                 carteira_vencedor.saldo_comprometido -= valor_liquidado
                 carteira_leiloeiro.saldo_total += valor_liquidado
 
+            lances_ordenados = ordenar_lances(lote.lances)
+            if not lances_ordenados:
+                hash_cadeia_lances = HASH_INICIAL_CADEIA
+            elif lances_ordenados[-1].hash_evento:
+                hash_cadeia_lances = lances_ordenados[-1].hash_evento
+            else:
+                hash_cadeia_lances = None
+
             liquidacao = LiquidacaoLote(
                 lote_id=lote.id,
                 leiloeiro_id=lote.leiloeiro_id,
                 vencedor_id=vencedor_id,
                 lance_id=lance_vencedor.id if lance_vencedor is not None else None,
                 valor=valor_liquidado,
+                hash_cadeia_lances=hash_cadeia_lances,
+                quantidade_lances=len(lances_ordenados),
                 data_liquidacao=agora,
             )
             self.db.add(liquidacao)

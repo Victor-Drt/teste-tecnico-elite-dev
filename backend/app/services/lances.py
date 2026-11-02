@@ -17,9 +17,17 @@ from app.schemas.lances import (
     MeuLancePagina,
     SituacaoMeuLance,
 )
-from app.schemas.usuarios import UsuarioResponse
 from app.models.lances import Lance
 from app.models.lotes import StatusLote
+from app.schemas.usuarios import UsuarioResponse
+from app.services.cadeia_lances import (
+    HASH_INICIAL_CADEIA,
+    calcular_hash_lance,
+    mapear_participantes,
+    obter_sufixo_cadeia,
+    ordenar_lances,
+    verificar_cadeia_lances,
+)
 
 JANELA_ANTISNIPING = timedelta(minutes=2)
 
@@ -137,7 +145,25 @@ class LanceService:
         if usuario.papel.value != "licitante":
             raise ValueError("Somente licitantes podem fazer um lance")
 
-        maior_lance = max(lote.lances, key=lambda lance: lance.valor, default=None)
+        lances_existentes = ordenar_lances(lote.lances)
+        cadeia_existente = obter_sufixo_cadeia(lances_existentes)
+        if cadeia_existente is None or (
+            cadeia_existente
+            and not verificar_cadeia_lances(
+                cadeia_existente,
+                cadeia_existente[-1].hash_evento or "",
+            )
+        ):
+            raise ValueError(
+                "O histórico deste lote não possui uma cadeia de integridade "
+                "válida; não é possível registrar novos lances."
+            )
+
+        maior_lance = max(
+            lances_existentes,
+            key=lambda lance: (lance.valor, lance.id),
+            default=None,
+        )
 
         if maior_lance is not None and usuario.id == maior_lance.licitante_id:
             raise ValueError(
@@ -199,6 +225,23 @@ class LanceService:
 
         if lance is None:
             raise ValueError("Não foi possivel efetuar lance")
+
+        self.db.refresh(lance, attribute_names=["data_criacao"])
+        participantes = mapear_participantes(lances_existentes)
+        participante = participantes.get(usuario.id)
+        if participante is None:
+            participante = f"Participante #{len(participantes) + 1}"
+        hash_anterior = (
+            cadeia_existente[-1].hash_evento
+            if cadeia_existente
+            else HASH_INICIAL_CADEIA
+        )
+        lance.hash_anterior = hash_anterior
+        lance.hash_evento = calcular_hash_lance(
+            lance,
+            participante,
+            hash_anterior,
+        )
 
         if lote.data_fim - agora <= JANELA_ANTISNIPING:
             lote.data_fim += JANELA_ANTISNIPING

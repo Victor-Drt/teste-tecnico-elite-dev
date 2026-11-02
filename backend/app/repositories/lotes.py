@@ -55,6 +55,14 @@ def buscar_lote_para_auditoria(db: Session, lote_id: int) -> Lote | None:
     )
 
 
+def buscar_liquidacao_lote(db: Session, lote_id: int) -> LiquidacaoLote | None:
+    return (
+        db.query(LiquidacaoLote)
+        .filter(LiquidacaoLote.lote_id == lote_id)
+        .one_or_none()
+    )
+
+
 def buscar_comprovante_arremate(
     db: Session, lote_id: int, vencedor_id: int
 ) -> LiquidacaoLote | None:
