@@ -18,6 +18,9 @@ def test_deve_retornar_lista_de_itens_com_sucesso_quando_autenticado(
             "data_exibicao": "2026",
             "info_artista": "Artista de teste",
             "imagem_id": "img-123",
+            "imagem_url": (
+                "https://www.artic.edu/iiif/2/img-123/full/843,/0/default.jpg"
+            ),
         }
     ]
     db_session.add(
@@ -134,6 +137,9 @@ def test_deve_retornar_detalhes_do_item_quando_id_existir(
         "data_exibicao": "1916",
         "info_artista": "Claude Monet",
         "imagem_id": "img-123",
+        "imagem_url": (
+            "https://www.artic.edu/iiif/2/img-123/full/843,/0/default.jpg"
+        ),
         "descricao": "Pintura",
         "numero_referencia": "REF-123",
     }

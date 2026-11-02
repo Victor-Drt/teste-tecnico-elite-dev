@@ -2,7 +2,13 @@ from sqlalchemy.orm import Session
 
 from app.models.lotes import Lote, StatusLote
 from app.schemas.usuarios import UsuarioResponse
-from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteResumo, LoteUpdate
+from app.schemas.lotes import (
+    LoteCreate,
+    LoteDetalhesResponse,
+    LoteListagemResponse,
+    LoteResumo,
+    LoteUpdate,
+)
 from app.repositories import lotes as repository
 
 
@@ -39,17 +45,21 @@ class LoteService:
         return LoteDetalhesResponse.model_validate(lote)
 
     def listar_lotes(
-        self, usuario: UsuarioResponse, offset: int, limit: int
-    ) -> list[LoteResumo]:
+        self,
+        usuario: UsuarioResponse,
+        offset: int,
+        limit: int,
+        status: StatusLote | None = None,
+    ) -> list[LoteListagemResponse]:
 
         if usuario.papel.value == "leiloeiro":
             lotes = repository.listar_lotes_por_leiloeiro(
-                self.db, usuario.id, offset, limit
+                self.db, usuario.id, offset, limit, status
             )
         else:
-            lotes = repository.listar_lotes(self.db, offset, limit)
+            lotes = repository.listar_lotes(self.db, offset, limit, status)
 
-        return [LoteResumo.model_validate(lote) for lote in lotes]
+        return [LoteListagemResponse.model_validate(lote) for lote in lotes]
 
     def atualizar_lote(
         self, leiloeiro_id: int, lote_id: int, data: LoteUpdate

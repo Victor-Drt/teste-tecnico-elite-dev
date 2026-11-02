@@ -97,6 +97,16 @@ def test_deve_retornar_resumos_dos_lotes_quando_leiloeiro_autorizado(
             "valor_atual": "100.00",
             "status": lote_teste.status.value,
             "vencedor_id": lote_teste.vencedor_id,
+            "item": {
+                "id": lote_teste.item.id,
+                "titulo": lote_teste.item.titulo,
+                "data_exibicao": lote_teste.item.data_exibicao,
+                "info_artista": lote_teste.item.info_artista,
+                "imagem_id": lote_teste.item.imagem_id,
+                "imagem_url": (
+                    "https://www.artic.edu/iiif/2/img-123/full/843,/0/default.jpg"
+                ),
+            },
         }
     ]
 
@@ -142,6 +152,34 @@ def test_licitante_nao_deve_listar_lotes_cancelados(
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.lotes
+def test_deve_filtrar_lotes_por_status(
+    client, cabecalho_licitante, lote_teste, db_session
+):
+    lote_teste.status = StatusLote.AO_VIVO
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/lotes/?status=ao_vivo",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 200
+    assert [lote["id"] for lote in response.json()] == [lote_teste.id]
+
+
+@pytest.mark.lotes
+def test_deve_rejeitar_limite_de_lotes_acima_do_maximo(
+    client, cabecalho_licitante
+):
+    response = client.get(
+        "/api/v1/lotes/?limit=101",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.lotes

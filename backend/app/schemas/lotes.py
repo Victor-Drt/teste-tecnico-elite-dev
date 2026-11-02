@@ -3,6 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.models.lotes import StatusLote
+from app.schemas.itens import ItemResumo
 
 
 class LoteCreate(BaseModel):
@@ -23,6 +24,10 @@ class LoteResumo(BaseModel):
     vencedor_id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LoteListagemResponse(LoteResumo):
+    item: ItemResumo
 
 
 class LoteDetalhesResponse(LoteResumo):

@@ -1,4 +1,14 @@
-from pydantic import BaseModel, Field, ConfigDict
+from urllib.parse import quote
+
+from pydantic import BaseModel, Field, ConfigDict, computed_field
+
+
+def construir_url_imagem(imagem_id: str) -> str:
+    image_identifier = quote(imagem_id, safe="")
+    return (
+        f"https://www.artic.edu/iiif/2/{image_identifier}"
+        "/full/843,/0/default.jpg"
+    )
 
 
 class ItensApiExterna(BaseModel):
@@ -19,6 +29,11 @@ class ItemResumo(BaseModel):
     imagem_id: str
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def imagem_url(self) -> str:
+        return construir_url_imagem(self.imagem_id)
 
 
 class ItemDetalhesResponse(ItemResumo):

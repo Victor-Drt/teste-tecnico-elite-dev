@@ -1,9 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 
 from app.schemas.usuarios import UsuarioResponse
-from app.schemas.lotes import LoteCreate, LoteDetalhesResponse, LoteUpdate
+from app.models.lotes import StatusLote
+from app.schemas.lotes import (
+    LoteCreate,
+    LoteDetalhesResponse,
+    LoteListagemResponse,
+    LoteUpdate,
+)
 from app.api.v1.deps import verificar_role, get_current_user
 from app.db.session import get_db
 from app.services.lotes import LoteRegraNegocioError, LoteService
@@ -36,12 +42,13 @@ def listar_lotes(
         Depends(get_current_user),
     ],
     db: Session = Depends(get_db),
-    offset: int = 0,
-    limit: int = 10,
-):
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
+    status_lote: StatusLote | None = Query(default=None, alias="status"),
+) -> list[LoteListagemResponse]:
     service = LoteService(db)
 
-    return service.listar_lotes(usuario_atual, offset, limit)
+    return service.listar_lotes(usuario_atual, offset, limit, status_lote)
 
 
 @router.get("/arremates", status_code=200)
