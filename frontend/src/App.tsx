@@ -5,7 +5,7 @@ import RegisterPage from "./pages/RegisterPage";
 import PrivateRoute from "./components/PrivateRoute";
 import AppLayout from "./layout/AppLayout";
 import VitrinePage from "./pages/VitrinePage";
-import PainelLeiloeiroPage from "./pages/PainleLeiloeiroPage";
+import PainelLeiloeiroPage from "./pages/PainelLeiloeiroPage";
 import RoleRoute from "./components/RoleRoute";
 import ItemDetalhesPage from "./pages/ItemDetalhesPage";
 
