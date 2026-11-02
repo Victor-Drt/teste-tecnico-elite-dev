@@ -18,6 +18,15 @@ def buscar_lote_por_id(db: Session, lote_id: int) -> Lote | None:
     )
 
 
+def buscar_lote_para_lance(db: Session, lote_id: int) -> Lote | None:
+    return (
+        db.query(Lote)
+        .filter(Lote.id == lote_id)
+        .with_for_update()
+        .one_or_none()
+    )
+
+
 def buscar_lote_para_vitrine(db: Session, lote_id: int) -> Lote | None:
     return (
         db.query(Lote)

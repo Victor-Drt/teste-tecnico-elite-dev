@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -126,9 +127,11 @@ def test_novo_lance_e_transmitido_aos_usuarios_conectados_na_sala(
         valor=120,
     )
     lote_ao_vivo.valor_atual = Decimal("120.00")
+    lote_ao_vivo.data_fim = datetime.now() + timedelta(seconds=90)
     carteira_licitante.saldo_comprometido = Decimal("120.00")
     db_session.add(lance_anterior)
     db_session.commit()
+    data_fim_esperada = lote_ao_vivo.data_fim + timedelta(minutes=2)
     lote_id = lote_ao_vivo.id
     usuario_id = usuario_licitante.id
     outro_usuario_id = outro_usuario_licitante.id
@@ -165,6 +168,7 @@ def test_novo_lance_e_transmitido_aos_usuarios_conectados_na_sala(
         assert evento["lance"]["valor"] == "131.00"
         assert evento["lance_atual"]["valor"] == "131.00"
         assert evento["valor_atual"] == "131.00"
+        assert evento["data_fim"] == data_fim_esperada.isoformat()
         assert evento["participantes"] == [
             {
                 "licitante_id": outro_usuario_id,

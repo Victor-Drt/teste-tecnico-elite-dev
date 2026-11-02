@@ -90,6 +90,7 @@ async def notificar_lance_criado(
             "lance": _lance_para_json(lance),
             "lance_atual": _lance_para_json(lance_atual),
             "valor_atual": str(lote.valor_atual),
+            "data_fim": lote.data_fim.isoformat(),
             "participantes": participantes,
         },
     )
