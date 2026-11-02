@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 
 from app.models.lances import Lance
+from app.models.lotes import StatusLote
 
 
 @pytest.mark.lances
@@ -171,3 +172,134 @@ def test_deve_retornar_403_quando_leiloeiro_tentar_criar_lance(
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.lances
+def test_deve_listar_lotes_com_lances_do_usuario_incluindo_perdidos(
+    client,
+    cabecalho_licitante,
+    lote_teste,
+    usuario_licitante,
+    outro_usuario_licitante,
+    db_session,
+):
+    lote_teste.status = StatusLote.CONCLUIDO
+    lote_teste.vencedor_id = outro_usuario_licitante.id
+    lote_teste.valor_atual = Decimal("180.00")
+    db_session.add_all(
+        [
+            Lance(
+                licitante_id=usuario_licitante.id,
+                lote_id=lote_teste.id,
+                valor=Decimal("120.00"),
+            ),
+            Lance(
+                licitante_id=usuario_licitante.id,
+                lote_id=lote_teste.id,
+                valor=Decimal("150.00"),
+            ),
+            Lance(
+                licitante_id=outro_usuario_licitante.id,
+                lote_id=lote_teste.id,
+                valor=Decimal("180.00"),
+            ),
+        ]
+    )
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/lances/meus?categoria=meus-lances",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["lote"]["id"] == lote_teste.id
+    assert data["items"][0]["lote"]["item"]["titulo"] == "Nenúfares"
+    assert data["items"][0]["lance"]["valor"] == "150.00"
+    assert data["items"][0]["situacao"] == "superado"
+
+
+@pytest.mark.lances
+def test_deve_filtrar_lotes_arrematados_pelo_usuario_com_paginacao(
+    client,
+    cabecalho_licitante,
+    lote_teste,
+    usuario_licitante,
+    db_session,
+):
+    lote_teste.status = StatusLote.CONCLUIDO
+    lote_teste.vencedor_id = usuario_licitante.id
+    db_session.add(
+        Lance(
+            licitante_id=usuario_licitante.id,
+            lote_id=lote_teste.id,
+            valor=Decimal("150.00"),
+        )
+    )
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/lances/meus?categoria=lotes-vencidos&offset=0&limit=1",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["situacao"] == "arrematado"
+
+
+@pytest.mark.lances
+def test_deve_listar_historico_sem_expor_identidade_dos_outros_licitantes(
+    client,
+    cabecalho_licitante,
+    lote_ao_vivo,
+    usuario_licitante,
+    outro_usuario_licitante,
+    db_session,
+):
+    db_session.add_all(
+        [
+            Lance(
+                licitante_id=usuario_licitante.id,
+                lote_id=lote_ao_vivo.id,
+                valor=Decimal("120.00"),
+            ),
+            Lance(
+                licitante_id=outro_usuario_licitante.id,
+                lote_id=lote_ao_vivo.id,
+                valor=Decimal("140.00"),
+            ),
+        ]
+    )
+    db_session.commit()
+
+    response = client.get(
+        f"/api/v1/lances/lotes/{lote_ao_vivo.id}/historico?limit=1",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert len(data["items"]) == 1
+    assert data["items"][0]["valor"] == "140.00"
+    assert data["items"][0]["eh_usuario_atual"] is False
+    assert "licitante_id" not in data["items"][0]
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_consulta_dos_meus_lances_sem_autenticacao(client):
+    response = client.get("/api/v1/lances/meus")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.lances
+def test_deve_rejeitar_historico_sem_autenticacao(client):
+    response = client.get("/api/v1/lances/lotes/1/historico")
+
+    assert response.status_code == 401

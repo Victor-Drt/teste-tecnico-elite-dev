@@ -5,9 +5,19 @@ from app.repositories import (
     lotes as lote_repository,
     carteiras as carteira_repository,
 )
-from app.schemas.lances import LanceResumo, LanceCreate
+from app.schemas.lances import (
+    CategoriaMeusLances,
+    HistoricoLancesPagina,
+    LanceCreate,
+    LanceHistoricoItem,
+    LanceResumo,
+    MeuLanceItem,
+    MeuLancePagina,
+    SituacaoMeuLance,
+)
 from app.schemas.usuarios import UsuarioResponse
 from app.models.lances import Lance
+from app.models.lotes import StatusLote
 
 
 class LanceService:
@@ -28,6 +38,67 @@ class LanceService:
             raise ValueError("Lance não encontrado")
 
         return LanceResumo.model_validate(lance)
+
+    def listar_meus_lances(
+        self,
+        usuario_id: int,
+        categoria: CategoriaMeusLances,
+        offset: int,
+        limit: int,
+    ) -> MeuLancePagina:
+        lances, total = repository.listar_ultimos_lances_por_usuario(
+            self.db, usuario_id, categoria.value, offset, limit
+        )
+        items = []
+
+        for lance in lances:
+            lote = lance.lote
+            if lote.status == StatusLote.CONCLUIDO:
+                situacao = (
+                    SituacaoMeuLance.ARREMATADO
+                    if lote.vencedor_id == usuario_id
+                    else SituacaoMeuLance.SUPERADO
+                )
+            elif lance.valor == lote.valor_atual:
+                situacao = SituacaoMeuLance.LIDERANDO
+            else:
+                situacao = SituacaoMeuLance.SUPERADO
+
+            items.append(
+                MeuLanceItem(
+                    lote=lote,
+                    lance=lance,
+                    situacao=situacao,
+                )
+            )
+
+        return MeuLancePagina(
+            items=items,
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
+
+    def listar_historico_lances(
+        self, lote_id: int, usuario_id: int, offset: int, limit: int
+    ) -> HistoricoLancesPagina:
+        lances, total = repository.listar_historico_lances_por_lote(
+            self.db, lote_id, offset, limit
+        )
+        items = [
+            LanceHistoricoItem(
+                valor=lance.valor,
+                data_criacao=lance.data_criacao,
+                eh_usuario_atual=lance.licitante_id == usuario_id,
+            )
+            for lance in lances
+        ]
+        return HistoricoLancesPagina(
+            items=items,
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
 
     def criar_lance(
         self, usuario: UsuarioResponse, lance_data: LanceCreate
