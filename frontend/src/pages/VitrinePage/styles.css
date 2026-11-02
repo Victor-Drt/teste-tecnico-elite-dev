@@ -37,16 +37,6 @@
   margin: 0.8rem 0 0;
 }
 
-.auction-showcase__demo-note {
-  background: #f0efff;
-  border-radius: 999px;
-  color: #5c58c9;
-  flex: 0 0 auto;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.55rem 0.85rem;
-}
-
 .auction-filters {
   display: flex;
   flex-wrap: wrap;
@@ -120,74 +110,16 @@
 }
 
 .auction-card__artwork {
-  align-items: center;
-  display: flex;
+  background: #f1f0f3;
   height: 210px;
-  justify-content: center;
   overflow: hidden;
   position: relative;
 }
 
-.auction-card__artwork::before,
-.auction-card__artwork::after {
-  border: 1px solid rgb(255 255 255 / 54%);
-  content: "";
-  position: absolute;
-  transform: rotate(-18deg);
-}
-
-.auction-card__artwork::before {
-  border-radius: 48% 52% 62% 38%;
-  height: 175px;
-  width: 175px;
-}
-
-.auction-card__artwork::after {
-  border-radius: 50%;
-  height: 110px;
-  width: 110px;
-}
-
-.auction-card__artwork--blue {
-  background:
-    radial-gradient(ellipse at 70% 22%, #a5b4fc 0 14%, transparent 14.5%),
-    linear-gradient(135deg, #263d75, #6479c9 52%, #d2a77e);
-}
-
-.auction-card__artwork--terracotta {
-  background:
-    radial-gradient(circle at 28% 68%, #efd3a4 0 18%, transparent 18.5%),
-    linear-gradient(145deg, #713e3a, #c5745d 55%, #e7b78e);
-}
-
-.auction-card__artwork--green {
-  background:
-    radial-gradient(ellipse at 68% 28%, #d4d691 0 17%, transparent 17.5%),
-    linear-gradient(135deg, #244c45, #568779 54%, #d1bd8c);
-}
-
-.auction-card__artwork--violet {
-  background:
-    radial-gradient(circle at 35% 35%, #e2c5e1 0 17%, transparent 17.5%),
-    linear-gradient(140deg, #473568, #8772b1 56%, #d3a9a0);
-}
-
-.auction-card__artwork--gold {
-  background:
-    radial-gradient(ellipse at 72% 68%, #f5e1a8 0 19%, transparent 19.5%),
-    linear-gradient(135deg, #655333, #b59655 52%, #e4c78e);
-}
-
-.auction-card__artwork-label {
-  background: rgb(35 32 49 / 65%);
-  border: 1px solid rgb(255 255 255 / 28%);
-  border-radius: 999px;
-  color: #fff;
-  font-size: 0.77rem;
-  font-weight: 600;
-  padding: 0.45rem 0.8rem;
-  position: relative;
-  z-index: 1;
+.auction-card__artwork img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .auction-card__content {
@@ -250,10 +182,11 @@
   margin: 0.8rem 0 0;
 }
 
-.auction-card__description {
-  color: #858391;
-  font-size: 0.85rem;
-  margin: 0.3rem 0 0;
+.auction-card__value {
+  color: #403d4d;
+  font-size: 0.9rem;
+  font-weight: 650;
+  margin: 0.8rem 0 0;
 }
 
 .auction-card__footer {
@@ -354,10 +287,6 @@
   .auction-showcase__intro {
     align-items: start;
     flex-direction: column;
-  }
-
-  .auction-showcase__demo-note {
-    order: -1;
   }
 
   .auction-carousel__track {

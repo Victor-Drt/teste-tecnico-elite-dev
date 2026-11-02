@@ -1,69 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { IoArrowBack, IoArrowForward, IoChevronForward } from "react-icons/io5";
+import type { LoteListagem, LoteStatus } from "../../types/lotes";
+import { fetchLotes } from "../../services/lotes";
 import "./styles.css";
 
 type LotStatus = "ao_vivo" | "em_breve" | "encerrado";
 type StatusFilter = "todos" | LotStatus;
 
-interface AuctionLot {
-  id: number;
-  title: string;
-  artist: string;
-  description: string;
-  startsAt: Date;
-  endsAt: Date;
-  artwork: "blue" | "terracotta" | "green" | "violet" | "gold";
-}
-
-const now = Date.now();
-const mockLots: AuctionLot[] = [
-  {
-    id: 1,
-    title: "Composição em azul",
-    artist: "Acervo contemporâneo",
-    description: "Acrílica sobre tela",
-    startsAt: new Date(now - 45 * 60_000),
-    endsAt: new Date(now + 2 * 60 * 60_000 + 35 * 60_000),
-    artwork: "blue",
-  },
-  {
-    id: 2,
-    title: "Formas do horizonte",
-    artist: "Ateliê Aurora",
-    description: "Óleo sobre tela",
-    startsAt: new Date(now - 25 * 60_000),
-    endsAt: new Date(now + 4 * 60 * 60_000 + 12 * 60_000),
-    artwork: "terracotta",
-  },
-  {
-    id: 3,
-    title: "Jardim em movimento",
-    artist: "Marina Costa",
-    description: "Técnica mista",
-    startsAt: new Date(now + 18 * 60 * 60_000),
-    endsAt: new Date(now + 42 * 60 * 60_000),
-    artwork: "green",
-  },
-  {
-    id: 4,
-    title: "Noite violeta",
-    artist: "Estúdio Horizonte",
-    description: "Aquarela sobre papel",
-    startsAt: new Date(now + 2 * 24 * 60 * 60_000),
-    endsAt: new Date(now + 3 * 24 * 60 * 60_000),
-    artwork: "violet",
-  },
-  {
-    id: 5,
-    title: "Memórias douradas",
-    artist: "Acervo clássico",
-    description: "Gravura em edição limitada",
-    startsAt: new Date(now - 4 * 24 * 60 * 60_000),
-    endsAt: new Date(now - 3 * 24 * 60 * 60_000),
-    artwork: "gold",
-  },
-];
+const initialTime = Date.now();
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
 
 const filterOptions: { label: string; value: StatusFilter }[] = [
   { label: "Todos", value: "todos" },
@@ -103,25 +52,28 @@ function getStatusLabel(status: LotStatus): string {
   }
 }
 
-function getLotStatus(lot: AuctionLot, currentTime: number): LotStatus {
-  if (currentTime >= lot.endsAt.getTime()) {
-    return "encerrado";
+function getLotStatus(status: LoteStatus): LotStatus | null {
+  if (status === "cancelado") {
+    return null;
   }
-  if (currentTime < lot.startsAt.getTime()) {
-    return "em_breve";
-  }
-  return "ao_vivo";
+  return status === "concluido" ? "encerrado" : status;
 }
 
 function AuctionCard({
   lot,
   currentTime,
 }: {
-  lot: AuctionLot;
+  lot: LoteListagem;
   currentTime: number;
 }) {
-  const status = getLotStatus(lot, currentTime);
-  const dateToDisplay = status === "ao_vivo" ? lot.endsAt : lot.startsAt;
+  const status = getLotStatus(lot.status);
+  if (!status) {
+    return null;
+  }
+
+  const startDate = new Date(lot.data_inicio);
+  const endDate = new Date(lot.data_fim);
+  const dateToDisplay = status === "ao_vivo" ? endDate : startDate;
   const countdownLabel =
     status === "ao_vivo"
       ? `Encerra em ${formatTimeRemaining(dateToDisplay, currentTime)}`
@@ -131,29 +83,36 @@ function AuctionCard({
 
   return (
     <article className="auction-card">
-      <div
-        aria-label={`Arte abstrata em tons de ${lot.artwork}`}
-        className={`auction-card__artwork auction-card__artwork--${lot.artwork}`}
-        role="img"
-      >
-        <span className="auction-card__artwork-label">Obra em destaque</span>
+      <div className="auction-card__artwork">
+        <img
+          alt={lot.item.titulo}
+          loading="lazy"
+          src={lot.item.imagem_url}
+        />
       </div>
       <div className="auction-card__content">
         <div className="auction-card__heading">
           <span className={`auction-card__status auction-card__status--${status}`}>
             {getStatusLabel(status)}
           </span>
-          <h2>{lot.title}</h2>
+          <h2>{lot.item.titulo}</h2>
         </div>
         <p
           className={`auction-card__countdown${status === "ao_vivo" ? " is-live" : ""}`}
         >
           {countdownLabel}
         </p>
-        <p className="auction-card__artist">{lot.artist}</p>
-        <p className="auction-card__description">{lot.description}</p>
+        <p className="auction-card__artist">
+          {lot.item.info_artista ?? "Artista não informado"}
+        </p>
+        <p className="auction-card__value">
+          Valor atual: {currencyFormatter.format(Number(lot.valor_atual))}
+        </p>
         <div className="auction-card__footer">
-          <Link className="auction-card__participate" to={`/lotes/${lot.id}/sala`}>
+          <Link
+            className="auction-card__participate"
+            to={`/lotes/${lot.id}/sala`}
+          >
             {status === "encerrado" ? "Ver resultado" : "Participar do Leilão"}
           </Link>
           <Link className="auction-card__details" to={`/lotes/${lot.id}`}>
@@ -168,19 +127,60 @@ function AuctionCard({
 const VitrinePage = () => {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("todos");
-  const [currentTime, setCurrentTime] = useState(now);
+  const [currentTime, setCurrentTime] = useState(initialTime);
+  const [lots, setLots] = useState<LoteListagem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const timerId = window.setInterval(() => setCurrentTime(Date.now()), 30_000);
     return () => window.clearInterval(timerId);
   }, []);
 
+  useEffect(() => {
+    let isCurrentRequest = true;
+    const apiStatus: LoteStatus | undefined =
+      activeFilter === "encerrado"
+        ? "concluido"
+        : activeFilter === "todos"
+          ? undefined
+          : activeFilter;
+
+    fetchLotes(0, 50, apiStatus)
+      .then((response) => {
+        if (isCurrentRequest) {
+          setLots(response);
+        }
+      })
+      .catch(() => {
+        if (isCurrentRequest) {
+          setLoadError("Não foi possível carregar os lotes. Tente novamente.");
+        }
+      })
+      .finally(() => {
+        if (isCurrentRequest) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [activeFilter]);
+
+  const handleFilterChange = (filter: StatusFilter) => {
+    if (filter === activeFilter) {
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadError("");
+    setActiveFilter(filter);
+  };
+
   const visibleLots = useMemo(
-    () =>
-      activeFilter === "todos"
-        ? mockLots
-        : mockLots.filter((lot) => getLotStatus(lot, currentTime) === activeFilter),
-    [activeFilter, currentTime],
+    () => lots.filter((lot) => getLotStatus(lot.status) !== null),
+    [lots],
   );
 
   const scrollCarousel = (direction: -1 | 1) => {
@@ -202,7 +202,6 @@ const VitrinePage = () => {
           <h1 id="auction-showcase-title">Vitrine de Leilões</h1>
           <p>Encontre obras únicas e participe de leilões especiais.</p>
         </div>
-        <span className="auction-showcase__demo-note">Conteúdo demonstrativo</span>
       </section>
 
       <section aria-label="Filtrar leilões" className="auction-filters">
@@ -211,7 +210,7 @@ const VitrinePage = () => {
             aria-pressed={activeFilter === option.value}
             className={`auction-filter${activeFilter === option.value ? " is-active" : ""}`}
             key={option.value}
-            onClick={() => setActiveFilter(option.value)}
+            onClick={() => handleFilterChange(option.value)}
             type="button"
           >
             {option.label}
@@ -229,7 +228,15 @@ const VitrinePage = () => {
           <IoArrowBack aria-hidden="true" />
         </button>
         <div className="auction-carousel__track" ref={carouselRef}>
-          {visibleLots.length > 0 ? (
+          {isLoading ? (
+            <p className="auction-carousel__empty" role="status">
+              Carregando lotes...
+            </p>
+          ) : loadError ? (
+            <p className="auction-carousel__empty" role="alert">
+              {loadError}
+            </p>
+          ) : visibleLots.length > 0 ? (
             visibleLots.map((lot) => (
               <AuctionCard currentTime={currentTime} key={lot.id} lot={lot} />
             ))
