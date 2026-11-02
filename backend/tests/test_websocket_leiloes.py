@@ -68,8 +68,6 @@ def test_sala_websocket_entrega_estado_inicial_do_lote(
     data_fim = lote_ao_vivo.data_fim.isoformat()
     lance_anterior_id = lance_anterior.id
     lance_atual_id = lance_atual.id
-    usuario_id = usuario_licitante.id
-    outro_usuario_id = outro_usuario_licitante.id
 
     with client.websocket_connect(
         f"/api/v1/ws/leilao/{lote_id}",
@@ -86,27 +84,33 @@ def test_sala_websocket_entrega_estado_inicial_do_lote(
     }
     assert evento["lance_atual"]["id"] == lance_atual_id
     assert evento["lance_atual"]["valor"] == "140.00"
+    assert evento["lance_atual"]["participante"] == "Participante #2"
     assert [lance["id"] for lance in evento["historico_lances"]] == [
         lance_atual_id,
         lance_anterior_id,
     ]
+    assert [lance["participante"] for lance in evento["historico_lances"]] == [
+        "Participante #2",
+        "Participante #1",
+    ]
     assert evento["participantes"] == [
         {
-            "licitante_id": outro_usuario_id,
+            "participante": "Participante #2",
             "posicao": 1,
             "situacao": "ganhando",
         },
         {
-            "licitante_id": usuario_id,
+            "participante": "Participante #1",
             "posicao": 2,
             "situacao": "superado",
         },
     ]
     assert evento["usuario"] == {
-        "id": usuario_id,
+        "participante": "Participante #1",
         "posicao": 2,
         "situacao": "superado",
     }
+    assert "licitante_id" not in str(evento)
 
 
 @pytest.mark.lances
@@ -133,8 +137,6 @@ def test_novo_lance_e_transmitido_aos_usuarios_conectados_na_sala(
     db_session.commit()
     data_fim_esperada = lote_ao_vivo.data_fim + timedelta(minutes=2)
     lote_id = lote_ao_vivo.id
-    usuario_id = usuario_licitante.id
-    outro_usuario_id = outro_usuario_licitante.id
 
     with (
         client.websocket_connect(
@@ -164,23 +166,24 @@ def test_novo_lance_e_transmitido_aos_usuarios_conectados_na_sala(
     for evento in (evento_licitante, evento_outro):
         assert evento["tipo"] == "lance_atualizado"
         assert evento["lote_id"] == lote_id
-        assert evento["lance"]["licitante_id"] == outro_usuario_id
+        assert evento["lance"]["participante"] == "Participante #2"
         assert evento["lance"]["valor"] == "131.00"
         assert evento["lance_atual"]["valor"] == "131.00"
         assert evento["valor_atual"] == "131.00"
         assert evento["data_fim"] == data_fim_esperada.isoformat()
         assert evento["participantes"] == [
             {
-                "licitante_id": outro_usuario_id,
+                "participante": "Participante #2",
                 "posicao": 1,
                 "situacao": "ganhando",
             },
             {
-                "licitante_id": usuario_id,
+                "participante": "Participante #1",
                 "posicao": 2,
                 "situacao": "superado",
             },
         ]
+        assert "licitante_id" not in str(evento)
 
 
 @pytest.mark.lances

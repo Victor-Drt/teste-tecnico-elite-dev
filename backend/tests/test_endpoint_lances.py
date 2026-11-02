@@ -24,6 +24,8 @@ def test_deve_listar_lances_do_lote_sem_autenticacao(
     assert response.status_code == 200
     assert response.json()[0]["id"] == lance.id
     assert response.json()[0]["valor"] == "120.00"
+    assert response.json()[0]["participante"] == "Participante #1"
+    assert "licitante_id" not in response.json()[0]
 
 
 @pytest.mark.lances
@@ -44,7 +46,8 @@ def test_deve_criar_lance_e_comprometer_saldo_quando_dados_validos(
 
     assert response.status_code == 201
     assert response.json()["lote_id"] == lote_ao_vivo.id
-    assert response.json()["licitante_id"] == usuario_licitante.id
+    assert response.json()["participante"] == "Participante #1"
+    assert "licitante_id" not in response.json()
     assert response.json()["valor"] == "110.00"
 
     db_session.refresh(lote_ao_vivo)
