@@ -155,6 +155,45 @@ def test_licitante_nao_deve_listar_lotes_cancelados(
 
 
 @pytest.mark.lotes
+def test_licitante_deve_obter_detalhes_do_lote_para_vitrine(
+    client, cabecalho_licitante, lote_teste
+):
+    response = client.get(
+        f"/api/v1/lotes/{lote_teste.id}/vitrine",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == lote_teste.id
+    assert response.json()["item"] == {
+        "id": lote_teste.item.id,
+        "titulo": lote_teste.item.titulo,
+        "data_exibicao": lote_teste.item.data_exibicao,
+        "info_artista": lote_teste.item.info_artista,
+        "imagem_id": lote_teste.item.imagem_id,
+        "imagem_url": (
+            "https://www.artic.edu/iiif/2/img-123/full/843,/0/default.jpg"
+        ),
+        "descricao": lote_teste.item.descricao,
+    }
+
+
+@pytest.mark.lotes
+def test_vitrine_nao_deve_retornar_lote_cancelado(
+    client, cabecalho_licitante, lote_teste, db_session
+):
+    lote_teste.status = StatusLote.CANCELADO
+    db_session.commit()
+
+    response = client.get(
+        f"/api/v1/lotes/{lote_teste.id}/vitrine",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.lotes
 def test_deve_filtrar_lotes_por_status(
     client, cabecalho_licitante, lote_teste, db_session
 ):

@@ -30,6 +30,14 @@ class LoteListagemResponse(LoteResumo):
     item: ItemResumo
 
 
+class ItemDetalhesVitrine(ItemResumo):
+    descricao: str | None = None
+
+
+class LoteVitrineResponse(LoteResumo):
+    item: ItemDetalhesVitrine
+
+
 class LoteDetalhesResponse(LoteResumo):
     valor_inicial: Decimal
     incremento_minimo: Decimal

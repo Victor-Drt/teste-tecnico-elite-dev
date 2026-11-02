@@ -18,6 +18,18 @@ def buscar_lote_por_id(db: Session, lote_id: int) -> Lote | None:
     )
 
 
+def buscar_lote_para_vitrine(db: Session, lote_id: int) -> Lote | None:
+    return (
+        db.query(Lote)
+        .options(joinedload(Lote.item))
+        .filter(
+            Lote.id == lote_id,
+            Lote.status != StatusLote.CANCELADO,
+        )
+        .one_or_none()
+    )
+
+
 def buscar_lote_por_leiloeiro_id(
     db: Session, leiloeiro_id: int, lote_id: int
 ) -> Lote | None:

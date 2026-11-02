@@ -9,6 +9,7 @@ from app.schemas.lotes import (
     LoteDetalhesResponse,
     LoteListagemResponse,
     LoteUpdate,
+    LoteVitrineResponse,
 )
 from app.api.v1.deps import verificar_role, get_current_user
 from app.db.session import get_db
@@ -62,6 +63,30 @@ def listar_arremates(
     service = LoteService(db)
 
     return service.buscar_lotes_arrematados(usuario_atual.id)
+
+
+@router.get(
+    "/{lote_id}/vitrine",
+    status_code=200,
+    response_model=LoteVitrineResponse,
+)
+def buscar_lote_para_vitrine(
+    lote_id: int,
+    usuario_atual: Annotated[
+        UsuarioResponse,
+        Depends(verificar_role("licitante")),
+    ],
+    db: Session = Depends(get_db),
+) -> LoteVitrineResponse:
+    service = LoteService(db)
+
+    try:
+        return service.buscar_lote_para_vitrine(lote_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/{lote_id}", status_code=200)

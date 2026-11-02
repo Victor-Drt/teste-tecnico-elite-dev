@@ -8,6 +8,7 @@ from app.schemas.lotes import (
     LoteListagemResponse,
     LoteResumo,
     LoteUpdate,
+    LoteVitrineResponse,
 )
 from app.repositories import lotes as repository
 
@@ -36,6 +37,14 @@ class LoteService:
             raise ValueError("Lote não encontrado")
 
         return LoteDetalhesResponse.model_validate(lote)
+
+    def buscar_lote_para_vitrine(self, lote_id: int) -> LoteVitrineResponse:
+        lote = repository.buscar_lote_para_vitrine(self.db, lote_id)
+
+        if lote is None:
+            raise ValueError("Lote não encontrado")
+
+        return LoteVitrineResponse.model_validate(lote)
 
     def buscar_lote_ao_vivo(self, lote_id: int) -> LoteDetalhesResponse:
         lote = repository.buscar_lote_aberto_por_id(self.db, lote_id)
