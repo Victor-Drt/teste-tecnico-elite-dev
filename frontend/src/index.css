@@ -19,3 +19,24 @@ body {
 #root {
   min-height: 100vh;
 }
+
+.auth-status {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.auth-status button {
+  background-color: #2c293d;
+  border: 0;
+  border-radius: 0.5rem;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.7rem 1.25rem;
+}

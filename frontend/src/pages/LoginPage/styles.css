@@ -197,6 +197,13 @@
   margin: 0;
 }
 
+.login-success {
+  color: #18794e;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+  text-align: center;
+}
+
 .login-signup {
   color: #777584;
   font-size: 0.95rem;

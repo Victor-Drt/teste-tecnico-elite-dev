@@ -1,13 +1,41 @@
 import axios from "axios";
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import heroLoginIllustration from "../../assets/login-page-woman.svg";
 import "./styles.css";
 import { IoEyeOutline, IoEyeSharp } from "react-icons/io5";
 import { login } from "../../services/auth";
 
+const DEFAULT_REDIRECT_PATH = "/vitrine";
+
+function getRedirectPath(state: unknown): string {
+  if (
+    typeof state !== "object" ||
+    state === null ||
+    !("from" in state) ||
+    typeof state.from !== "object" ||
+    state.from === null ||
+    !("pathname" in state.from) ||
+    typeof state.from.pathname !== "string"
+  ) {
+    return DEFAULT_REDIRECT_PATH;
+  }
+
+  const pathname = state.from.pathname;
+  return pathname.startsWith("/") && !pathname.startsWith("//")
+    ? pathname
+    : DEFAULT_REDIRECT_PATH;
+}
+
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedPath = getRedirectPath(location.state);
+  const registrationSuccess =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "registrationSuccess" in location.state &&
+    location.state.registrationSuccess === true;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -21,7 +49,7 @@ const LoginPage = () => {
 
     try {
       await login(email, password);
-      navigate("/", { replace: true });
+      navigate(requestedPath, { replace: true });
     } catch (error) {
       if (axios.isAxiosError<{ detail?: string }>(error)) {
         setErrorMessage(
@@ -65,6 +93,12 @@ const LoginPage = () => {
           <p className="login-description">
             Entre na sua conta para continuar.
           </p>
+
+          {registrationSuccess && (
+            <p className="login-success" role="status">
+              Cadastro realizado com sucesso. Entre com sua conta.
+            </p>
+          )}
 
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="login-field">

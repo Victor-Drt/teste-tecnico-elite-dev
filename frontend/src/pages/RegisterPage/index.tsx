@@ -1,16 +1,51 @@
+import axios from "axios";
 import { Link, useNavigate } from "react-router";
 import heroRegisterIllustration from "../../assets/register-page-man-join.svg";
 import { useState, type FormEvent } from "react";
 import { IoEyeOutline, IoEyeSharp } from "react-icons/io5";
+import type { UserRole } from "../../types/usuarios";
+import { register } from "../../services/usuarios";
 import "./styles.css";
 
 const RegisterPage = () => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<UserRole | "">("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    navigate("/vitrine");
+    if (!role) {
+      setErrorMessage("Selecione se deseja comprar ou vender.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await register({ nome: name, email, senha: password, papel: role });
+      navigate("/login", {
+        replace: true,
+        state: { registrationSuccess: true },
+      });
+    } catch (error) {
+      if (axios.isAxiosError<{ detail?: string }>(error)) {
+        const detail = error.response?.data?.detail;
+        setErrorMessage(
+          (typeof detail === "string" && detail) ??
+            "Não foi possível conectar ao serviço. Tente novamente.",
+        );
+      } else {
+        setErrorMessage("Ocorreu um erro inesperado ao criar a conta.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -41,13 +76,16 @@ const RegisterPage = () => {
           <p className="register-description">Cadastre-se para iniciar.</p>
           <form className="register-form" onSubmit={handleSubmit}>
             <div className="register-field">
-              <label htmlFor="name">Name</label>
+              <label htmlFor="name">Nome</label>
               <input
+                autoComplete="name"
                 id="name"
                 name="name"
-                placeholder="Jhon Doe"
+                placeholder="Seu nome completo"
                 required
                 type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
               />
             </div>
 
@@ -60,6 +98,8 @@ const RegisterPage = () => {
                 placeholder="seuemail@exemplo.com"
                 required
                 type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
               />
             </div>
 
@@ -67,12 +107,14 @@ const RegisterPage = () => {
               <label htmlFor="password">Senha</label>
               <div className="register-password-input">
                 <input
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   id="password"
                   name="password"
                   placeholder="Digite sua senha"
                   required
                   type={isPasswordVisible ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                 />
                 <button
                   aria-label={
@@ -88,20 +130,46 @@ const RegisterPage = () => {
               </div>
             </div>
 
-            <div className="register-field">
-              <label htmlFor="role">Quero:</label>
-              <div>
-                <input type="radio" name="role" id="licitante" />
-                <label htmlFor="licitante">Comprar</label>
-              </div>
-              <div>
-                <input type="radio" name="role" id="leiloeiro" />
-                <label htmlFor="leiloeiro">Vender</label>
-              </div>
-            </div>
+            <fieldset className="register-role">
+              <legend>Quero:</legend>
+              <label className="register-role__option" htmlFor="licitante">
+                <input
+                  checked={role === "licitante"}
+                  id="licitante"
+                  name="role"
+                  onChange={() => setRole("licitante")}
+                  required
+                  type="radio"
+                  value="licitante"
+                />
+                Comprar
+              </label>
+              <label className="register-role__option" htmlFor="leiloeiro">
+                <input
+                  checked={role === "leiloeiro"}
+                  id="leiloeiro"
+                  name="role"
+                  onChange={() => setRole("leiloeiro")}
+                  required
+                  type="radio"
+                  value="leiloeiro"
+                />
+                Vender
+              </label>
+            </fieldset>
 
-            <button className="register-submit" type="submit">
-              Cadastrar
+            {errorMessage && (
+              <p className="register-error" role="alert">
+                {errorMessage}
+              </p>
+            )}
+
+            <button
+              className="register-submit"
+              disabled={isSubmitting}
+              type="submit"
+            >
+              {isSubmitting ? "Cadastrando..." : "Cadastrar"}
             </button>
           </form>
 
