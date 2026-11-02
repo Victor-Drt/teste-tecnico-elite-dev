@@ -206,21 +206,46 @@ const AuditoriaPage = () => {
                   </span>
                   <div>
                     <h2 id="audit-cryptography-title">
-                      Identificação dos dados
+                      Integridade do histórico
                     </h2>
-                    <p>Resumo SHA-256 desta consulta</p>
+                    <p>Cadeia SHA-256 dos lances</p>
                   </div>
-                  <span className="audit-hash-status">
-                    SHA-256 calculado
+                  <span
+                    className="audit-hash-status"
+                    data-integrity={audit.integridade_cadeia}
+                  >
+                    {audit.integridade_cadeia === "verificada"
+                      ? "Cadeia verificada"
+                      : audit.integridade_cadeia === "inconsistente"
+                        ? "Divergência detectada"
+                        : "Não verificada"}
                   </span>
                 </div>
                 <div className="audit-hash">
-                  <span>Hash dos dados públicos</span>
+                  <span>Âncora gravada na liquidação</span>
+                  <code>
+                    {audit.hash_cadeia_lances ??
+                      "Não há âncora persistida para este histórico."}
+                  </code>
+                  {audit.quantidade_lances_ancorada !== null && (
+                    <span>
+                      Quantidade de lances no encerramento:{" "}
+                      {audit.quantidade_lances_ancorada}
+                    </span>
+                  )}
+                </div>
+                <div className="audit-hash">
+                  <span>Fingerprint dos dados apresentados</span>
                   <code>{audit.hash_sha256}</code>
                 </div>
                 <p className="audit-crypto__algorithm">
-                  Fingerprint dos dados exibidos; não representa assinatura
-                  digital nem trilha imutável.
+                  {audit.integridade_cadeia === "verificada"
+                    ? "Os hashes de cada lance e a âncora da liquidação correspondem ao histórico atual."
+                    : audit.integridade_cadeia === "inconsistente"
+                      ? "A cadeia atual não corresponde à âncora persistida. O histórico pode ter sido alterado."
+                      : "Este registro não possui uma âncora de cadeia e não pode ser verificado retroativamente."}{" "}
+                  A âncora está no mesmo banco: alguém que reescreva todo o
+                  histórico e a âncora poderá recalcular a cadeia.
                 </p>
               </section>
             </div>
@@ -299,6 +324,15 @@ const AuditoriaPage = () => {
                         <strong className="audit-bid__amount">
                           {currencyFormatter.format(Number(bid.valor))}
                         </strong>
+                        <details className="audit-bid__proof">
+                          <summary>Prova SHA-256 do lance</summary>
+                          <span>Hash anterior</span>
+                          <code>
+                            {bid.hash_anterior ?? "Hash não registrado"}
+                          </code>
+                          <span>Hash do evento</span>
+                          <code>{bid.hash_evento ?? "Hash não registrado"}</code>
+                        </details>
                       </li>
                     ))}
                 </ol>

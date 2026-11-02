@@ -191,6 +191,14 @@
   white-space: nowrap;
 }
 
+.audit-hash-status[data-integrity="inconsistente"] {
+  color: #b42318;
+}
+
+.audit-hash-status[data-integrity="nao_verificada"] {
+  color: #946200;
+}
+
 .audit-hash {
   display: flex;
   flex-direction: column;
@@ -377,6 +385,36 @@
   font-size: 0.82rem;
   text-align: right;
   white-space: nowrap;
+}
+
+.audit-bid__proof {
+  grid-column: 2 / -1;
+  min-width: 0;
+}
+
+.audit-bid__proof summary {
+  color: #5955cf;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.audit-bid__proof > span {
+  display: block;
+  color: #777584;
+  font-size: 0.68rem;
+  margin-top: 0.55rem;
+}
+
+.audit-bid__proof code {
+  display: block;
+  color: #39334e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  padding-top: 0.2rem;
+  user-select: all;
 }
 
 .audit-bid--winner .audit-bid__position,
