@@ -483,6 +483,89 @@ def test_nao_deve_deletar_lote_que_ja_recebeu_lances(
 
 
 @pytest.mark.lotes
+def test_comprovante_arremate_disponivel_apenas_para_o_vencedor(
+    client,
+    cabecalho_licitante,
+    cabecalho_outro_licitante,
+    lote_teste,
+    usuario_licitante,
+    usuario_teste,
+    db_session,
+):
+    from datetime import datetime
+    from decimal import Decimal
+
+    from app.models.liquidacoes import LiquidacaoLote
+
+    lance = Lance(
+        licitante_id=usuario_licitante.id,
+        lote_id=lote_teste.id,
+        valor=Decimal("125.00"),
+    )
+    lote_teste.status = StatusLote.CONCLUIDO
+    lote_teste.vencedor_id = usuario_licitante.id
+    lote_teste.valor_atual = Decimal("125.00")
+    db_session.add(lance)
+    db_session.flush()
+    liquidacao = LiquidacaoLote(
+        lote_id=lote_teste.id,
+        leiloeiro_id=usuario_teste.id,
+        vencedor_id=usuario_licitante.id,
+        lance_id=lance.id,
+        valor=Decimal("125.00"),
+        data_liquidacao=datetime(2030, 1, 1, 12, 1),
+    )
+    db_session.add(liquidacao)
+    db_session.commit()
+
+    response = client.get(
+        f"/api/v1/lotes/{lote_teste.id}/comprovante",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": liquidacao.id,
+        "lote_id": lote_teste.id,
+        "lance_id": lance.id,
+        "item": {
+            "id": lote_teste.item_id,
+            "titulo": "Nenúfares",
+            "data_exibicao": "1916",
+            "info_artista": "Claude Monet",
+            "imagem_id": "img-123",
+            "imagem_url": (
+                "https://www.artic.edu/iiif/2/img-123/full/843,/0/default.jpg"
+            ),
+        },
+        "valor": "125.00",
+        "data_inicio": lote_teste.data_inicio.isoformat(),
+        "data_fim": lote_teste.data_fim.isoformat(),
+        "data_liquidacao": liquidacao.data_liquidacao.isoformat(),
+    }
+
+    response_nao_autorizada = client.get(
+        f"/api/v1/lotes/{lote_teste.id}/comprovante",
+        headers=cabecalho_outro_licitante,
+    )
+    assert response_nao_autorizada.status_code == 404
+
+
+@pytest.mark.lotes
+def test_comprovante_arremate_nao_disponivel_sem_liquidacao(
+    client,
+    cabecalho_licitante,
+    lote_teste,
+):
+    response = client.get(
+        f"/api/v1/lotes/{lote_teste.id}/comprovante",
+        headers=cabecalho_licitante,
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.lotes
 def test_deve_retornar_404_quando_lote_a_deletar_nao_existir(
     client, cabecalho_autenticado
 ):
