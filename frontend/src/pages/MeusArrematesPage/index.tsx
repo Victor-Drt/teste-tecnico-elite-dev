@@ -3,134 +3,155 @@ import { Link } from "react-router";
 import {
   IoArrowBack,
   IoArrowForward,
-  IoClose,
   IoChevronForward,
+  IoClose,
 } from "react-icons/io5";
+import { fetchHistoricoLances, fetchMeusLances } from "../../services/lances";
+import { getItemImageUrl } from "../../services/itens";
+import type {
+  CategoriaMeusLances,
+  LanceHistoricoItem,
+  MeuLanceItem,
+} from "../../types/lances";
 import "./styles.css";
 
-type BidFilter = "meus-lances" | "lotes-vencidos";
-type BidStatus = "superado" | "liderando" | "arrematado";
-type ArtworkStyle = "blue" | "terracotta" | "green" | "violet";
-
-interface BidHistoryEntry {
-  bidder: string;
-  amount: number;
-  date: string;
-  isCurrentUser?: boolean;
-}
-
-interface AuctionBid {
-  id: number;
-  title: string;
-  artist: string;
-  artwork: ArtworkStyle;
-  status: BidStatus;
-  statusDate: string;
-  userBid: number;
-  history: BidHistoryEntry[];
-}
-
-const mockBids: AuctionBid[] = [
-  {
-    id: 11,
-    title: "Composição em azul",
-    artist: "Acervo contemporâneo",
-    artwork: "blue",
-    status: "superado",
-    statusDate: "Seu lance foi superado hoje, às 14:32",
-    userBid: 15000,
-    history: [
-      { bidder: "Mariana S.", amount: 16800, date: "Hoje, 14:32" },
-      {
-        bidder: "Você",
-        amount: 15000,
-        date: "Hoje, 14:18",
-        isCurrentUser: true,
-      },
-      { bidder: "Carlos R.", amount: 13500, date: "Hoje, 13:57" },
-    ],
-  },
-  {
-    id: 12,
-    title: "Formas do horizonte",
-    artist: "Ateliê Aurora",
-    artwork: "terracotta",
-    status: "liderando",
-    statusDate: "Seu lance é o maior no momento",
-    userBid: 8200,
-    history: [
-      {
-        bidder: "Você",
-        amount: 8200,
-        date: "Hoje, 12:45",
-        isCurrentUser: true,
-      },
-      { bidder: "Pedro M.", amount: 7600, date: "Hoje, 12:20" },
-      { bidder: "Você", amount: 6800, date: "Hoje, 11:52" },
-    ],
-  },
-  {
-    id: 13,
-    title: "Jardim em movimento",
-    artist: "Marina Costa",
-    artwork: "green",
-    status: "superado",
-    statusDate: "Seu lance foi superado ontem",
-    userBid: 12400,
-    history: [
-      { bidder: "Rafael T.", amount: 13900, date: "Ontem, 18:04" },
-      {
-        bidder: "Você",
-        amount: 12400,
-        date: "Ontem, 17:46",
-        isCurrentUser: true,
-      },
-      { bidder: "Ana L.", amount: 11200, date: "Ontem, 17:10" },
-    ],
-  },
-  {
-    id: 14,
-    title: "Noite violeta",
-    artist: "Estúdio Horizonte",
-    artwork: "violet",
-    status: "arrematado",
-    statusDate: "Arrematado em 28 de outubro de 2026",
-    userBid: 22300,
-    history: [
-      {
-        bidder: "Você",
-        amount: 22300,
-        date: "28 out. 2026, 20:15",
-        isCurrentUser: true,
-      },
-      { bidder: "Lucia P.", amount: 20800, date: "28 out. 2026, 20:02" },
-      { bidder: "Você", amount: 19500, date: "28 out. 2026, 19:48" },
-    ],
-  },
-];
+const PAGE_SIZE = 20;
+const HISTORY_PAGE_SIZE = 50;
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
 
-const statusLabels: Record<BidStatus, string> = {
+const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const statusLabels = {
   superado: "Lance Superado",
   liderando: "Maior lance",
   arrematado: "Arrematado",
-};
+} as const;
 
-function getVisibleBids(filter: BidFilter): AuctionBid[] {
-  return filter === "lotes-vencidos"
-    ? mockBids.filter((bid) => bid.status === "arrematado")
-    : mockBids.filter((bid) => bid.status !== "arrematado");
+function formatDate(value: string): string {
+  return dateTimeFormatter.format(new Date(value));
+}
+
+function getStatusDate(bid: MeuLanceItem): string {
+  if (bid.situacao === "arrematado" || bid.lote.status === "concluido") {
+    return `Encerrado em ${formatDate(bid.lote.data_fim)}`;
+  }
+  if (bid.situacao === "liderando") {
+    return "Seu lance é o maior no momento";
+  }
+  return `Seu lance registrado em ${formatDate(bid.lance.data_criacao)}`;
+}
+
+function getOtherCategory(
+  category: CategoriaMeusLances,
+): CategoriaMeusLances {
+  return category === "meus-lances" ? "lotes-vencidos" : "meus-lances";
 }
 
 const MeusArrematesPage = () => {
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [activeFilter, setActiveFilter] = useState<BidFilter>("meus-lances");
-  const [selectedBid, setSelectedBid] = useState<AuctionBid | null>(null);
-  const visibleBids = getVisibleBids(activeFilter);
+  const [activeFilter, setActiveFilter] =
+    useState<CategoriaMeusLances>("meus-lances");
+  const activeFilterRef = useRef(activeFilter);
+  const [bids, setBids] = useState<MeuLanceItem[]>([]);
+  const [totals, setTotals] = useState<
+    Record<CategoriaMeusLances, number | null>
+  >({ "meus-lances": null, "lotes-vencidos": null });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState("");
+  const [loadMoreError, setLoadMoreError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [selectedBid, setSelectedBid] = useState<MeuLanceItem | null>(null);
+  const selectedBidRef = useRef(selectedBid);
+  const [history, setHistory] = useState<LanceHistoricoItem[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isHistoryLoadingMore, setIsHistoryLoadingMore] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [historyReloadKey, setHistoryReloadKey] = useState(0);
+
+  const closeHistory = () => {
+    selectedBidRef.current = null;
+    setSelectedBid(null);
+  };
+
+  useEffect(() => {
+    let isCurrent = true;
+    const otherCategory = getOtherCategory(activeFilter);
+
+    Promise.all([
+      fetchMeusLances(activeFilter, 0, PAGE_SIZE),
+      fetchMeusLances(otherCategory, 0, 1),
+    ])
+      .then(([activePage, otherPage]) => {
+        if (!isCurrent) {
+          return;
+        }
+        setBids(activePage.items);
+        setTotals({
+          "meus-lances":
+            activeFilter === "meus-lances"
+              ? activePage.total
+              : otherPage.total,
+          "lotes-vencidos":
+            activeFilter === "lotes-vencidos"
+              ? activePage.total
+              : otherPage.total,
+        });
+        carouselRef.current?.scrollTo({ left: 0 });
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setError("Não foi possível carregar seus arremates.");
+        }
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeFilter, reloadKey]);
+
+  useEffect(() => {
+    if (!selectedBid) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    fetchHistoricoLances(selectedBid.lote.id, 0, HISTORY_PAGE_SIZE)
+      .then((page) => {
+        if (isCurrent) {
+          setHistory(page.items);
+          setHistoryTotal(page.total);
+        }
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setHistoryError("Não foi possível carregar o histórico de lances.");
+        }
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsHistoryLoading(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedBid, historyReloadKey]);
 
   useEffect(() => {
     if (!selectedBid) {
@@ -139,7 +160,7 @@ const MeusArrematesPage = () => {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setSelectedBid(null);
+        closeHistory();
       }
     };
 
@@ -154,6 +175,92 @@ const MeusArrematesPage = () => {
     });
   };
 
+  const selectFilter = (category: CategoriaMeusLances) => {
+    activeFilterRef.current = category;
+    setIsLoading(true);
+    setError("");
+    setLoadMoreError("");
+    setBids([]);
+    if (category === activeFilter) {
+      setReloadKey((key) => key + 1);
+    } else {
+      setActiveFilter(category);
+    }
+  };
+
+  const retryLoadingBids = () => {
+    setIsLoading(true);
+    setError("");
+    setReloadKey((key) => key + 1);
+  };
+
+  const openHistory = (bid: MeuLanceItem) => {
+    selectedBidRef.current = bid;
+    setHistory([]);
+    setHistoryTotal(0);
+    setHistoryError("");
+    setIsHistoryLoading(true);
+    setSelectedBid(bid);
+  };
+
+  const retryLoadingHistory = () => {
+    setHistoryError("");
+    setIsHistoryLoading(true);
+    setHistoryReloadKey((key) => key + 1);
+  };
+
+  const loadMoreBids = async () => {
+    const category = activeFilter;
+    setIsLoadingMore(true);
+    setLoadMoreError("");
+    try {
+      const page = await fetchMeusLances(
+        category,
+        bids.length,
+        PAGE_SIZE,
+      );
+      if (activeFilterRef.current === category) {
+        setBids((current) => [...current, ...page.items]);
+        setTotals((current) => ({ ...current, [category]: page.total }));
+      }
+    } catch {
+      if (activeFilterRef.current === category) {
+        setLoadMoreError("Não foi possível carregar mais lotes.");
+      }
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  const loadMoreHistory = async () => {
+    if (!selectedBid) {
+      return;
+    }
+
+    const lotId = selectedBid.lote.id;
+    setIsHistoryLoadingMore(true);
+    setHistoryError("");
+    try {
+      const page = await fetchHistoricoLances(
+        lotId,
+        history.length,
+        HISTORY_PAGE_SIZE,
+      );
+      if (selectedBidRef.current?.lote.id === lotId) {
+        setHistory((current) => [...current, ...page.items]);
+        setHistoryTotal(page.total);
+      }
+    } catch {
+      if (selectedBidRef.current?.lote.id === lotId) {
+        setHistoryError("Não foi possível carregar mais lances.");
+      }
+    } finally {
+      setIsHistoryLoadingMore(false);
+    }
+  };
+
+  const visibleTotal = totals[activeFilter];
+
   return (
     <main className="my-auctions">
       <section aria-labelledby="my-auctions-title" className="my-auctions__intro">
@@ -162,27 +269,30 @@ const MeusArrematesPage = () => {
           <h1 id="my-auctions-title">Meus Arremates</h1>
           <p>Consulte seus lances e acompanhe as obras que você arrematou.</p>
         </div>
-        <span className="my-auctions__demo-note">Conteúdo demonstrativo</span>
       </section>
 
-      <div aria-label="Filtrar arremates" className="my-auctions__filters">
+      <div
+        aria-label="Filtrar arremates"
+        className="my-auctions__filters"
+        role="group"
+      >
         <button
           aria-pressed={activeFilter === "meus-lances"}
           className={`my-auctions__filter${activeFilter === "meus-lances" ? " is-active" : ""}`}
-          onClick={() => setActiveFilter("meus-lances")}
+          onClick={() => selectFilter("meus-lances")}
           type="button"
         >
           Meus Lances
-          <span>{getVisibleBids("meus-lances").length}</span>
+          <span>{totals["meus-lances"] ?? "…"}</span>
         </button>
         <button
           aria-pressed={activeFilter === "lotes-vencidos"}
           className={`my-auctions__filter${activeFilter === "lotes-vencidos" ? " is-active" : ""}`}
-          onClick={() => setActiveFilter("lotes-vencidos")}
+          onClick={() => selectFilter("lotes-vencidos")}
           type="button"
         >
           Lotes Vencidos
-          <span>{getVisibleBids("lotes-vencidos").length}</span>
+          <span>{totals["lotes-vencidos"] ?? "…"}</span>
         </button>
       </div>
 
@@ -196,49 +306,65 @@ const MeusArrematesPage = () => {
           <IoArrowBack aria-hidden="true" />
         </button>
 
-        <div className="my-auctions__track" ref={carouselRef}>
-          {visibleBids.length > 0 ? (
-            visibleBids.map((bid) => (
-              <article className="my-bid-card" key={bid.id}>
-                <div
-                  aria-label={`Imagem demonstrativa da obra ${bid.title}`}
-                  className={`my-bid-card__artwork my-bid-card__artwork--${bid.artwork}`}
-                  role="img"
-                >
-                  <span>Obra em destaque</span>
-                </div>
+        <div aria-live="polite" className="my-auctions__track" ref={carouselRef}>
+          {isLoading ? (
+            <p className="my-auctions__message">Carregando seus arremates…</p>
+          ) : error ? (
+            <div className="my-auctions__message" role="alert">
+              <p>{error}</p>
+              <button
+                className="my-auctions__retry"
+                onClick={retryLoadingBids}
+                type="button"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : bids.length > 0 ? (
+            bids.map((bid) => (
+              <article className="my-bid-card" key={bid.lote.id}>
+                <img
+                  alt={bid.lote.item.titulo}
+                  className="my-bid-card__artwork"
+                  loading="lazy"
+                  src={getItemImageUrl(bid.lote.item.id)}
+                />
 
                 <div className="my-bid-card__content">
                   <div className="my-bid-card__title-row">
-                    <h2>{bid.title}</h2>
+                    <h2>{bid.lote.item.titulo}</h2>
                     <span
-                      className={`my-bid-card__badge my-bid-card__badge--${bid.status}`}
+                      className={`my-bid-card__badge my-bid-card__badge--${bid.situacao}`}
                     >
-                      {statusLabels[bid.status]}
+                      {statusLabels[bid.situacao]}
                     </span>
                   </div>
-                  <p className="my-bid-card__artist">{bid.artist}</p>
+                  <p className="my-bid-card__artist">
+                    {bid.lote.item.info_artista ?? "Artista não informado"}
+                  </p>
                   <p
-                    className={`my-bid-card__status-date my-bid-card__status-date--${bid.status}`}
+                    className={`my-bid-card__status-date my-bid-card__status-date--${bid.situacao}`}
                   >
-                    {bid.statusDate}
+                    {getStatusDate(bid)}
                   </p>
                   <p className="my-bid-card__amount">
                     Seu lance:{" "}
-                    <strong>{currencyFormatter.format(bid.userBid)}</strong>
+                    <strong>
+                      {currencyFormatter.format(Number(bid.lance.valor))}
+                    </strong>
                   </p>
 
                   <div className="my-bid-card__footer">
                     <button
                       className="my-bid-card__history"
-                      onClick={() => setSelectedBid(bid)}
+                      onClick={() => openHistory(bid)}
                       type="button"
                     >
                       Ver Histórico de Lances
                     </button>
                     <Link
                       className="my-bid-card__details"
-                      to={`/lotes/${bid.id}`}
+                      to={`/lotes/${bid.lote.id}`}
                     >
                       Saber mais <IoChevronForward aria-hidden="true" />
                     </Link>
@@ -247,8 +373,10 @@ const MeusArrematesPage = () => {
               </article>
             ))
           ) : (
-            <p className="my-auctions__empty">
-              Ainda não há lotes nesta categoria.
+            <p className="my-auctions__message">
+              {activeFilter === "meus-lances"
+                ? "Você ainda não participou de nenhum lote."
+                : "Você ainda não arrematou nenhum lote."}
             </p>
           )}
         </div>
@@ -263,12 +391,29 @@ const MeusArrematesPage = () => {
         </button>
       </section>
 
+      {!isLoading && !error && visibleTotal !== null && bids.length < visibleTotal && (
+        <div className="my-auctions__load-more">
+          {loadMoreError && (
+            <p className="my-auctions__load-error" role="alert">
+              {loadMoreError}
+            </p>
+          )}
+          <button
+            disabled={isLoadingMore}
+            onClick={loadMoreBids}
+            type="button"
+          >
+            {isLoadingMore ? "Carregando…" : "Carregar mais lotes"}
+          </button>
+        </div>
+      )}
+
       {selectedBid && (
         <div
           className="bid-history-overlay"
           onClick={(event) => {
             if (event.target === event.currentTarget) {
-              setSelectedBid(null);
+              closeHistory();
             }
           }}
         >
@@ -280,32 +425,75 @@ const MeusArrematesPage = () => {
           >
             <div className="bid-history__header">
               <div>
-                <span>Histórico demonstrativo</span>
-                <h2 id="bid-history-title">Lances: {selectedBid.title}</h2>
+                <span>Histórico de lances</span>
+                <h2 id="bid-history-title">
+                  {selectedBid.lote.item.titulo}
+                </h2>
               </div>
               <button
                 aria-label="Fechar histórico"
                 className="bid-history__close"
-                onClick={() => setSelectedBid(null)}
+                onClick={closeHistory}
                 type="button"
               >
                 <IoClose aria-hidden="true" />
               </button>
             </div>
-            <ol className="bid-history__list">
-              {selectedBid.history.map((entry, index) => (
-                <li
-                  className={entry.isCurrentUser ? "is-current-user" : ""}
-                  key={`${entry.bidder}-${entry.date}-${index}`}
+            {isHistoryLoading ? (
+              <p className="bid-history__message">Carregando histórico…</p>
+            ) : historyError && history.length === 0 ? (
+              <div className="bid-history__message" role="alert">
+                <p>{historyError}</p>
+                <button
+                  onClick={retryLoadingHistory}
+                  type="button"
                 >
-                  <div>
-                    <strong>{entry.bidder}</strong>
-                    <time>{entry.date}</time>
-                  </div>
-                  <span>{currencyFormatter.format(entry.amount)}</span>
-                </li>
-              ))}
-            </ol>
+                  Tentar novamente
+                </button>
+              </div>
+            ) : history.length === 0 ? (
+              <p className="bid-history__message">
+                Não há lances registrados neste lote.
+              </p>
+            ) : (
+              <>
+                <ol className="bid-history__list">
+                  {history.map((entry, index) => (
+                    <li
+                      className={entry.eh_usuario_atual ? "is-current-user" : ""}
+                      key={`${entry.data_criacao}-${index}`}
+                    >
+                      <div>
+                        <strong>
+                          {entry.eh_usuario_atual ? "Você" : "Outro participante"}
+                        </strong>
+                        <time>{formatDate(entry.data_criacao)}</time>
+                      </div>
+                      <span>
+                        {currencyFormatter.format(Number(entry.valor))}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                {historyError && (
+                  <p className="my-auctions__load-error" role="alert">
+                    {historyError}
+                  </p>
+                )}
+                {history.length < historyTotal && (
+                  <button
+                    className="bid-history__load-more"
+                    disabled={isHistoryLoadingMore}
+                    onClick={loadMoreHistory}
+                    type="button"
+                  >
+                    {isHistoryLoadingMore
+                      ? "Carregando…"
+                      : "Carregar mais lances"}
+                  </button>
+                )}
+              </>
+            )}
           </section>
         </div>
       )}
