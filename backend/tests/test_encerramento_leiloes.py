@@ -29,10 +29,11 @@ def test_encerrar_lote_expirado_liquida_lance_vencedor_uma_unica_vez(
         LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("120.00")),
     )
 
-    lance = lance_service.criar_lance(
+    lance_resumo = lance_service.criar_lance(
         UsuarioResponse.model_validate(outro_usuario_licitante),
         LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("150.00")),
     )
+    lance = db_session.query(Lance).filter(Lance.id == lance_resumo.id).one()
     lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
     db_session.commit()
 
@@ -66,6 +67,26 @@ def test_encerrar_lote_expirado_liquida_lance_vencedor_uma_unica_vez(
     assert comprovante.leiloeiro_id == usuario_teste.id
     assert comprovante.lance_id == lance.id
     assert comprovante.valor == Decimal("150.00")
+    assert comprovante.hash_cadeia_lances == lance.hash_evento
+    assert comprovante.quantidade_lances == 2
+    assert len(lance.hash_anterior) == 64
+    assert len(lance.hash_evento) == 64
+    lance_inicial = (
+        db_session.query(Lance)
+        .filter(
+            Lance.lote_id == lote_ao_vivo.id,
+            Lance.id != lance.id,
+        )
+        .one()
+    )
+    assert lance_inicial.hash_anterior == "0" * 64
+    assert lance.hash_anterior == lance_inicial.hash_evento
+
+    auditoria = LoteService(db_session).buscar_auditoria_publica(
+        lote_ao_vivo.id
+    )
+    assert auditoria.integridade_cadeia == "verificada"
+    assert auditoria.hash_cadeia_lances == comprovante.hash_cadeia_lances
 
     resultado_repetido = LoteService(db_session).encerrar_lote_expirado(
         lote_ao_vivo.id
@@ -191,3 +212,68 @@ def test_nao_liquidar_lote_se_carteira_do_vencedor_nao_existir(
     assert db_session.query(Carteira).filter_by(
         usuario_id=usuario_licitante.id
     ).count() == 0
+
+
+@pytest.mark.parametrize("adulteracao", ["alterar", "remover", "inserir"])
+@pytest.mark.lotes
+def test_auditoria_detecta_adulteracoes_no_historico_ancorado(
+    adulteracao,
+    lote_ao_vivo,
+    usuario_licitante,
+    outro_usuario_licitante,
+    carteira_licitante,
+    carteira_outro_licitante,
+    db_session,
+):
+    lance_service = LanceService(db_session)
+    lance_service.criar_lance(
+        UsuarioResponse.model_validate(usuario_licitante),
+        LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("120.00")),
+    )
+    lance_service.criar_lance(
+        UsuarioResponse.model_validate(outro_usuario_licitante),
+        LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("150.00")),
+    )
+    lance_service.criar_lance(
+        UsuarioResponse.model_validate(usuario_licitante),
+        LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("170.00")),
+    )
+    lance_vencedor = lance_service.criar_lance(
+        UsuarioResponse.model_validate(outro_usuario_licitante),
+        LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("190.00")),
+    )
+    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
+    db_session.commit()
+    LoteService(db_session).encerrar_lote_expirado(lote_ao_vivo.id)
+
+    auditoria = LoteService(db_session).buscar_auditoria_publica(
+        lote_ao_vivo.id
+    )
+    assert auditoria.integridade_cadeia == "verificada"
+
+    lances = (
+        db_session.query(Lance)
+        .filter(Lance.lote_id == lote_ao_vivo.id)
+        .order_by(Lance.data_criacao, Lance.id)
+        .all()
+    )
+    if adulteracao == "alterar":
+        lances[0].valor = Decimal("121.00")
+    elif adulteracao == "remover":
+        db_session.delete(lances[-2])
+    else:
+        db_session.add(
+            Lance(
+                licitante_id=usuario_licitante.id,
+                lote_id=lote_ao_vivo.id,
+                valor=Decimal("110.00"),
+                data_criacao=datetime.now(),
+            )
+        )
+    db_session.commit()
+    db_session.expire(lote_ao_vivo, ["lances"])
+
+    auditoria_adulterada = LoteService(db_session).buscar_auditoria_publica(
+        lote_ao_vivo.id
+    )
+    assert auditoria_adulterada.integridade_cadeia == "inconsistente"

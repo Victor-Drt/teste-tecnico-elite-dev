@@ -706,7 +706,7 @@ def test_auditoria_publica_retorna_dados_anonimizados_sem_autenticacao(
 
     response = client.get(f"/api/v1/lotes/{lote_teste.id}/auditoria")
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert data["lote_id"] == lote_teste.id
     assert data["item"]["titulo"] == lote_teste.item.titulo
@@ -721,6 +721,8 @@ def test_auditoria_publica_retorna_dados_anonimizados_sem_autenticacao(
     assert all("licitante_id" not in lance for lance in data["lances"])
     assert "vencedor_id" not in data
     assert len(data["hash_sha256"]) == 64
+    assert data["integridade_cadeia"] == "nao_verificada"
+    assert data["hash_cadeia_lances"] is None
     assert client.get(f"/api/v1/lotes/{lote_teste.id}/auditoria").json()[
         "hash_sha256"
     ] == data["hash_sha256"]
