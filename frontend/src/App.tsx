@@ -13,6 +13,7 @@ import MeusArrematesPage from "./pages/MeusArrematesPage";
 import ItensPage from "./pages/ItensPage";
 import LeilaoPage from "./pages/LeilaoPage";
 import AuditoriaPage from "./pages/AuditoriaPage";
+import ComprovanteArrematePage from "./pages/ComprovanteArrematePage";
 
 function AppShell() {
   return (
@@ -29,6 +30,10 @@ function AppShell() {
             <Route path="/lotes/:loteId/sala" element={<LeilaoPage />} />
             <Route path="/carteira" element={<CarteiraPage />} />
             <Route path="/arremates" element={<MeusArrematesPage />} />
+            <Route
+              path="/arremates/:loteId/comprovante"
+              element={<ComprovanteArrematePage />}
+            />
           </Route>
           <Route element={<RoleRoute role="leiloeiro" redirectTo="/vitrine" />}>
             <Route path="/painel-leiloeiro" element={<PainelLeiloeiroPage />} />

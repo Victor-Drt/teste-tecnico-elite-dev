@@ -396,15 +396,23 @@ const MeusArrematesPage = () => {
                   <div className="my-bid-card__footer">
                     {bid.situacao === "arrematado" &&
                       bid.lote.status === "concluido" && (
-                        <button
-                          aria-label={`Compartilhar auditoria do lote #${bid.lote.id}`}
-                          className="my-bid-card__share"
-                          onClick={() => shareAudit(bid.lote.id)}
-                          type="button"
-                        >
-                          <IoShareSocialOutline aria-hidden="true" />
-                          Compartilhar auditoria
-                        </button>
+                        <>
+                          <Link
+                            className="my-bid-card__receipt"
+                            to={`/arremates/${bid.lote.id}/comprovante`}
+                          >
+                            Ver comprovante
+                          </Link>
+                          <button
+                            aria-label={`Compartilhar auditoria do lote #${bid.lote.id}`}
+                            className="my-bid-card__share"
+                            onClick={() => shareAudit(bid.lote.id)}
+                            type="button"
+                          >
+                            <IoShareSocialOutline aria-hidden="true" />
+                            Compartilhar auditoria
+                          </button>
+                        </>
                       )}
                     <button
                       className="my-bid-card__history"
