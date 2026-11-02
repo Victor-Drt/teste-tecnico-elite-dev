@@ -1,4 +1,12 @@
-from sqlalchemy import Integer, ForeignKey, Numeric, DateTime, func, Enum as SQLEnum
+from sqlalchemy import (
+    DateTime,
+    Enum as SQLEnum,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from decimal import Decimal
 from enum import Enum
@@ -17,6 +25,9 @@ class StatusLote(Enum):
 
 class Lote(Base):
     __tablename__ = "lotes"
+    __table_args__ = (
+        Index("ix_lotes_status_data_fim", "status", "data_fim"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     item_id: Mapped[int] = mapped_column(ForeignKey("itens.id"), nullable=False)

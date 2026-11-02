@@ -13,8 +13,8 @@ class Carteira(Base):
     usuario_id: Mapped[int] = mapped_column(
         ForeignKey("usuarios.id"), nullable=False, unique=True
     )
-    saldo_total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    saldo_comprometido: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    saldo_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    saldo_comprometido: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     data_criacao: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
