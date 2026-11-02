@@ -12,6 +12,7 @@ import CarteiraPage from "./pages/CarteiraPage";
 import MeusArrematesPage from "./pages/MeusArrematesPage";
 import ItensPage from "./pages/ItensPage";
 import LeilaoPage from "./pages/LeilaoPage";
+import AuditoriaPage from "./pages/AuditoriaPage";
 
 function AppShell() {
   return (
@@ -19,6 +20,7 @@ function AppShell() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />
+      <Route path="/auditoria/:loteId" element={<AuditoriaPage />} />
       <Route element={<PrivateRoute />}>
         <Route element={<AppLayout />}>
           <Route element={<RoleRoute role="licitante" redirectTo="/painel-leiloeiro" />}>
