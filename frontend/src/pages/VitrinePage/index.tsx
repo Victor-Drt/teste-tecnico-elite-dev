@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { IoArrowBack, IoArrowForward, IoChevronForward } from "react-icons/io5";
 import type { LoteListagem, LoteStatus } from "../../types/lotes";
 import { fetchLotes } from "../../services/lotes";
+import { getItemImageUrl } from "../../services/itens";
 import "./styles.css";
 
 type LotStatus = "ao_vivo" | "em_breve" | "encerrado";
@@ -86,13 +87,17 @@ function AuctionCard({
       <div className="auction-card__artwork">
         <img
           alt={lot.item.titulo}
+          decoding="async"
           loading="lazy"
-          src={lot.item.imagem_url}
+          src={getItemImageUrl(lot.item.id)}
         />
       </div>
+
       <div className="auction-card__content">
         <div className="auction-card__heading">
-          <span className={`auction-card__status auction-card__status--${status}`}>
+          <span
+            className={`auction-card__status auction-card__status--${status}`}
+          >
             {getStatusLabel(status)}
           </span>
           <h2>{lot.item.titulo}</h2>
@@ -133,7 +138,10 @@ const VitrinePage = () => {
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    const timerId = window.setInterval(() => setCurrentTime(Date.now()), 30_000);
+    const timerId = window.setInterval(
+      () => setCurrentTime(Date.now()),
+      30_000,
+    );
     return () => window.clearInterval(timerId);
   }, []);
 
@@ -196,9 +204,14 @@ const VitrinePage = () => {
 
   return (
     <main className="auction-showcase">
-      <section aria-labelledby="auction-showcase-title" className="auction-showcase__intro">
+      <section
+        aria-labelledby="auction-showcase-title"
+        className="auction-showcase__intro"
+      >
         <div>
-          <span className="auction-showcase__eyebrow">Descubra novas obras</span>
+          <span className="auction-showcase__eyebrow">
+            Descubra novas obras
+          </span>
           <h1 id="auction-showcase-title">Vitrine de Leilões</h1>
           <p>Encontre obras únicas e participe de leilões especiais.</p>
         </div>
