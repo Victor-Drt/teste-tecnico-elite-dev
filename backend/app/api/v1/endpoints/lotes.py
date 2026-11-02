@@ -6,6 +6,7 @@ from app.schemas.usuarios import UsuarioResponse
 from app.models.lotes import StatusLote
 from app.schemas.lotes import (
     AuditoriaPublicaResponse,
+    ComprovanteArremateResponse,
     LoteCreate,
     LoteDetalhesResponse,
     LoteListagemResponse,
@@ -16,6 +17,7 @@ from app.api.v1.deps import verificar_role, get_current_user
 from app.db.session import get_db
 from app.services.lotes import (
     AuditoriaPublicaInconsistente,
+    ComprovanteArremateInconsistente,
     LoteRegraNegocioError,
     LoteService,
 )
@@ -108,6 +110,34 @@ def buscar_auditoria_publica(
     try:
         return service.buscar_auditoria_publica(lote_id)
     except AuditoriaPublicaInconsistente as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "/{lote_id}/comprovante",
+    status_code=200,
+    response_model=ComprovanteArremateResponse,
+)
+def buscar_comprovante_arremate(
+    lote_id: int,
+    usuario_atual: Annotated[
+        UsuarioResponse, Depends(verificar_role("licitante"))
+    ],
+    db: Session = Depends(get_db),
+) -> ComprovanteArremateResponse:
+    service = LoteService(db)
+
+    try:
+        return service.buscar_comprovante_arremate(lote_id, usuario_atual.id)
+    except ComprovanteArremateInconsistente as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),

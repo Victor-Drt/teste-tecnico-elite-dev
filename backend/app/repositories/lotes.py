@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from app.models.liquidacoes import LiquidacaoLote
 from app.models.lotes import Lote, StatusLote
 
 
@@ -49,6 +50,26 @@ def buscar_lote_para_auditoria(db: Session, lote_id: int) -> Lote | None:
             Lote.id == lote_id,
             Lote.status == StatusLote.CONCLUIDO,
             Lote.vencedor_id.is_not(None),
+        )
+        .one_or_none()
+    )
+
+
+def buscar_comprovante_arremate(
+    db: Session, lote_id: int, vencedor_id: int
+) -> LiquidacaoLote | None:
+    return (
+        db.query(LiquidacaoLote)
+        .join(LiquidacaoLote.lote)
+        .options(
+            joinedload(LiquidacaoLote.lote).joinedload(Lote.item),
+            joinedload(LiquidacaoLote.lance),
+        )
+        .filter(
+            LiquidacaoLote.lote_id == lote_id,
+            LiquidacaoLote.vencedor_id == vencedor_id,
+            Lote.status == StatusLote.CONCLUIDO,
+            Lote.vencedor_id == vencedor_id,
         )
         .one_or_none()
     )

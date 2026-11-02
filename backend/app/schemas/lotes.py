@@ -58,6 +58,17 @@ class AuditoriaPublicaResponse(BaseModel):
     hash_sha256: str
 
 
+class ComprovanteArremateResponse(BaseModel):
+    id: int
+    lote_id: int
+    lance_id: int
+    item: ItemResumo
+    valor: Decimal
+    data_inicio: datetime
+    data_fim: datetime
+    data_liquidacao: datetime
+
+
 class LoteDetalhesResponse(LoteResumo):
     valor_inicial: Decimal
     incremento_minimo: Decimal

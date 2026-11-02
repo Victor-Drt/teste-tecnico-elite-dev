@@ -16,6 +16,7 @@ from app.repositories import usuarios as usuario_repository
 from app.schemas.itens import ItemResumo
 from app.schemas.lotes import (
     AuditoriaPublicaResponse,
+    ComprovanteArremateResponse,
     LanceAuditoriaPublica,
     LoteCreate,
     LoteDetalhesResponse,
@@ -32,6 +33,10 @@ class LoteRegraNegocioError(Exception):
 
 
 class AuditoriaPublicaInconsistente(Exception):
+    pass
+
+
+class ComprovanteArremateInconsistente(Exception):
     pass
 
 
@@ -151,6 +156,42 @@ class LoteService:
         return AuditoriaPublicaResponse(
             **public_data,
             hash_sha256=hash_sha256,
+        )
+
+    def buscar_comprovante_arremate(
+        self, lote_id: int, vencedor_id: int
+    ) -> ComprovanteArremateResponse:
+        liquidacao = repository.buscar_comprovante_arremate(
+            self.db, lote_id, vencedor_id
+        )
+        if liquidacao is None:
+            raise ValueError("Comprovante de arremate não encontrado.")
+
+        lance = liquidacao.lance
+        lote = liquidacao.lote
+        if (
+            lance is None
+            or liquidacao.lance_id is None
+            or lance.lote_id != lote_id
+            or lance.licitante_id != vencedor_id
+            or lance.valor != liquidacao.valor
+            or lote.status != StatusLote.CONCLUIDO
+            or lote.vencedor_id != vencedor_id
+        ):
+            raise ComprovanteArremateInconsistente(
+                f"O comprovante da liquidação {liquidacao.id} não corresponde "
+                "ao lance vencedor registrado."
+            )
+
+        return ComprovanteArremateResponse(
+            id=liquidacao.id,
+            lote_id=liquidacao.lote_id,
+            lance_id=liquidacao.lance_id,
+            item=ItemResumo.model_validate(lote.item),
+            valor=liquidacao.valor,
+            data_inicio=lote.data_inicio,
+            data_fim=lote.data_fim,
+            data_liquidacao=liquidacao.data_liquidacao,
         )
 
     def buscar_lote_ao_vivo(self, lote_id: int) -> LoteDetalhesResponse:
