@@ -1,108 +1,160 @@
-# Teste Tecnico Elite Dev / Casa de Leilões
+# Teste Técnico Elite Dev — Casa de Leilões
 
-Projeto desenvolvido como parte do teste técnico para o processo seletivo da Elite Dev - Verzel.
+Aplicação desenvolvida como parte do processo seletivo Elite Dev da Verzel, contemplando uma plataforma de leilões com gerenciamento de usuários, itens, lotes e auditoria da cadeia de lances.
 
-## 🛠️ Tecnologias Principais
-* Frontend: React
-* Backend: FastAPI (Python)
+## 🚀 Acesso à aplicação
 
-> ⚠️ *Status: Em desenvolvimento.*
+**[Acessar Casa de Leilões](https://frontend-production-09b1.up.railway.app)**
 
-## Execução local com Docker
+- **Documentação da API:** [Swagger UI](https://backend-production-4861.up.railway.app/docs)
+- **Protótipo de interface:** [Visualizar no Figma](https://www.figma.com/design/lR8JwF8AGzU76xwuA3vmZ7/EliteDevTesteTecnico?node-id=0-1)
+
+> **Atenção:** A aplicação está hospedada no Railway e pode entrar em modo de suspensão após um período de inatividade. Na primeira tentativa de acesso, pode ser necessário aguardar alguns segundos até que os serviços voltem a responder. Caso a página não carregue imediatamente, aguarde e tente novamente.
+
+## 🔑 Credenciais de demonstração
+
+Foram disponibilizadas três contas para facilitar a avaliação dos diferentes perfis de acesso:
+
+| Perfil | E-mail | Senha |
+|---|---|---|
+| Licitante 1 | `licitante1@example.com` | `licitante1` |
+| Licitante 2 | `licitante2@example.com` | `licitante2` |
+| Leiloeiro | `leiloeiro1@example.com` | `leiloeiro1` |
+
+As credenciais são destinadas exclusivamente à avaliação do teste técnico.
+
+## 🛠️ Tecnologias utilizadas
+
+- **Frontend:** React 19, TypeScript e Vite.
+- **Backend:** Python e FastAPI.
+- **ORM:** SQLAlchemy.
+- **Banco de dados:** PostgreSQL.
+- **Migrações:** Alembic.
+- **Validação de dados:** Pydantic.
+- **Infraestrutura:** Docker, Docker Compose e Railway.
+
+## 🐳 Execução local com Docker
 
 ### Pré-requisitos
 
 - Docker Engine instalado e em execução.
 - Docker Compose v2 (`docker compose`).
 
-### Configurar e iniciar
+### Configuração
 
-O Compose carrega `.env.example` como configuração local padrão; um arquivo
-`.env` na raiz é opcional e sobrescreve os valores de exemplo. Para personalizar
-as configurações sem alterar o modelo, copie-o na raiz do projeto:
+O Compose utiliza `.env.example` como configuração padrão. A criação de um arquivo `.env` na raiz do projeto é opcional.
+
+Para personalizar as configurações, copie o arquivo de exemplo:
 
 ```bash
 cp .env.example .env
 ```
 
-Edite `.env` antes de iniciar. Se não criar esse arquivo, o Compose ainda inicia
-com os valores de `.env.example`, adequados apenas para desenvolvimento local:
+Edite o `.env` antes de iniciar. Se optar por não criá-lo, o Compose utilizará os valores de `.env.example`, adequados apenas para desenvolvimento local.
 
-- Troque `POSTGRES_PASSWORD` e `SECRET_KEY` por valores próprios.
-- No Compose, a URL do banco é montada automaticamente com o host `postgres`
-  e as credenciais de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
-  Não use `localhost` como host do banco dentro dos containers.
-- Configure `API_EXTERNA_URL` com a URL da API de itens que será sincronizada.
-- Mantenha `VITE_API_URL` apontando para a API acessível pelo navegador, por
-  padrão `http://localhost:8000/api/v1`.
+Algumas configurações importantes:
 
-Construa as imagens e inicie os serviços a partir da raiz:
+- Altere `POSTGRES_PASSWORD` e `SECRET_KEY` para valores próprios.
+- A URL do banco utilizada pelos containers é configurada com o host `postgres` e as credenciais definidas em `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`. Não utilize `localhost` como host do banco dentro dos containers.
+- Configure `API_EXTERNA_URL` com a URL da API externa utilizada na sincronização dos itens.
+- Mantenha `VITE_API_URL` apontando para a API acessível pelo navegador. Por padrão: `http://localhost:8000/api/v1`.
+
+### Inicialização
+
+Na raiz do projeto, execute:
 
 ```bash
 docker compose up --build -d
 ```
 
-O Compose inicia PostgreSQL, backend, frontend e o serviço `sync-itens`. O
-backend executa as migrações do banco antes de iniciar a API; o worker só inicia
-depois que o backend responde ao healthcheck. Confira os serviços e acompanhe
-os logs:
+O Docker Compose inicia os seguintes serviços:
+
+- PostgreSQL;
+- Backend FastAPI;
+- Frontend React;
+- Worker de sincronização de itens (`sync-itens`).
+
+O backend executa as migrações do banco de dados antes de iniciar a API. O worker inicia somente depois que o backend responde ao healthcheck.
+
+Para verificar os serviços:
 
 ```bash
 docker compose ps
+```
+
+Para acompanhar os logs:
+
+```bash
 docker compose logs -f
 ```
 
-Para acompanhar apenas o worker de sincronização:
+Para acompanhar somente o worker:
 
 ```bash
 docker compose logs -f sync-itens
 ```
 
-A aplicação fica disponível em <http://localhost:5173>, a API em
-<http://localhost:8000> e a documentação interativa em
-<http://localhost:8000/docs>.
+### Endereços locais
 
-Para acompanhar os serviços, use `docker compose logs -f`; para encerrar,
-execute `docker compose down`. Os dados do PostgreSQL permanecem no volume
-`postgres_data`. **Atenção:** `docker compose down -v` também remove esse volume
-e apaga os dados do banco.
+| Serviço | Endereço |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend / API | http://localhost:8000 |
+| Documentação Swagger | http://localhost:8000/docs |
 
-## Sincronização dos itens
+### Encerramento
 
-A aplicação lista os itens a partir do banco local. No Docker Compose, o serviço
-`sync-itens` realiza a primeira sincronização ao iniciar e repete o processo
-conforme `SYNC_ITENS_INTERVAL_SECONDS` (900 segundos por padrão). Mantenha
-somente uma instância desse serviço para evitar sincronizações concorrentes.
-Falhas são registradas nos logs; o worker tenta novamente no próximo ciclo.
+Para parar os serviços:
 
-Fora do Docker, execute o worker separadamente do servidor FastAPI, a partir da
-pasta `backend`:
+```bash
+docker compose down
+```
+
+Os dados do PostgreSQL permanecem armazenados no volume `postgres_data`.
+
+**Atenção:** o comando `docker compose down -v` também remove o volume e apaga os dados persistidos do banco.
+
+## 🔄 Sincronização dos itens
+
+A aplicação utiliza uma API externa para obter os itens que são armazenados no banco de dados local.
+
+O serviço `sync-itens` executa a primeira sincronização ao iniciar e repete o processo conforme o intervalo definido em `SYNC_ITENS_INTERVAL_SECONDS`, configurado em 900 segundos (15 minutos) por padrão.
+
+A sincronização é executada separadamente do servidor FastAPI, permitindo que o processo de atualização dos itens não bloqueie o atendimento das requisições da API.
+
+**Ambiente de produção:** o worker de sincronização foi temporariamente pausado após a carga inicial dos itens, mantendo os dados já persistidos disponíveis para a avaliação. O serviço permanece configurado no projeto e pode ser iniciado novamente quando necessário.
+
+Para executar o worker manualmente, fora do Docker, a partir da pasta `backend`:
 
 ```bash
 .venv/bin/python -m app.jobs.sync_itens
 ```
 
-Nesse modo, o worker também sincroniza ao iniciar e repete conforme
-`SYNC_ITENS_INTERVAL_SECONDS` (em segundos). Execute apenas uma instância por
-ambiente. Se uma sincronização falhar, o erro é registrado e os itens já salvos
-permanecem disponíveis; uma nova tentativa ocorre no ciclo seguinte.
+Mantenha apenas uma instância do worker por ambiente para evitar sincronizações concorrentes.
 
-## Auditoria da cadeia de lances
+Em caso de falha, o erro é registrado nos logs e uma nova tentativa ocorre no próximo ciclo. Os itens já persistidos permanecem disponíveis.
 
-Cada novo lance recebe um hash SHA-256 calculado sobre seus dados públicos
-(pseudônimo do participante, valor, data/hora e identificadores do lance e do
-lote), além do hash do evento anterior. O hash final é persistido na liquidação.
-A auditoria recalcula a cadeia, compara os hashes dos eventos com a âncora e
-exibe o resultado e as provas individuais dos lances.
+## 🔐 Auditoria da cadeia de lances
 
-A migração `c3d4e5f6a7b8` adiciona os campos de hash. Lances e liquidações
-anteriores à migração não recebem uma prova retroativa e aparecem como não
-verificados. Para registrar alterações de quantidade, a liquidação também
-guarda a quantidade de lances no fechamento. A implementação não usa serviços
-externos ou armazenamento em nuvem.
+Cada novo lance recebe um hash SHA-256 calculado a partir de seus dados públicos:
 
-**Limitação:** a cadeia detecta alterações quando a âncora permanece intacta,
-mas não impede que alguém com acesso suficiente ao banco reescreva os lances,
-os hashes e a própria âncora. Como todos esses dados ficam no mesmo banco, não
-há proteção contra uma reescrita completa; isso exigiria uma âncora independente,
-fora do escopo deste teste técnico.
+- Pseudônimo do participante;
+- Valor do lance;
+- Data e hora;
+- Identificadores do lance e do lote.
+
+O cálculo também considera o hash do evento anterior, formando uma cadeia de integridade entre os lances.
+
+O hash final é persistido na liquidação. Durante a auditoria, o sistema recalcula a cadeia, compara os hashes dos eventos com a âncora persistida e apresenta o resultado da verificação, incluindo as provas individuais dos lances.
+
+A migração `c3d4e5f6a7b8` adiciona os campos necessários para essa funcionalidade.
+
+Lances e liquidações anteriores à migração não recebem provas retroativas e são apresentados como não verificados.
+
+Para registrar alterações na quantidade de lances, a liquidação também armazena a quantidade de lances existente no momento do fechamento.
+
+### Limitação da implementação
+
+A cadeia permite detectar alterações nos registros quando a âncora permanece intacta. Entretanto, não impede que alguém com acesso suficiente ao banco de dados reescreva os lances, seus hashes e a própria âncora.
+
+Como todos esses dados permanecem no mesmo banco, não existe proteção contra uma reescrita completa da cadeia. Isso exigiria uma âncora independente, armazenada fora do banco principal, o que está fora do escopo deste teste técnico.
