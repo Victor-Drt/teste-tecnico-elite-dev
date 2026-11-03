@@ -8,6 +8,64 @@ Projeto desenvolvido como parte do teste técnico para o processo seletivo da El
 
 > ⚠️ *Status: Em desenvolvimento.*
 
+## Execução local com Docker
+
+### Pré-requisitos
+
+- Docker Engine instalado e em execução.
+- Docker Compose v2 (`docker compose`).
+
+### Configurar e iniciar
+
+O Compose carrega `.env.example` como configuração local padrão; um arquivo
+`.env` na raiz é opcional e sobrescreve os valores de exemplo. Para personalizar
+as configurações sem alterar o modelo, copie-o na raiz do projeto:
+
+```bash
+cp .env.example .env
+```
+
+Edite `.env` antes de iniciar. Se não criar esse arquivo, o Compose ainda inicia
+com os valores de `.env.example`, adequados apenas para desenvolvimento local:
+
+- Troque `POSTGRES_PASSWORD` e `SECRET_KEY` por valores próprios.
+- No Compose, a URL do banco é montada automaticamente com o host `postgres`
+  e as credenciais de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
+  Não use `localhost` como host do banco dentro dos containers.
+- Configure `API_EXTERNA_URL` com a URL da API de itens que será sincronizada.
+- Mantenha `VITE_API_URL` apontando para a API acessível pelo navegador, por
+  padrão `http://localhost:8000/api/v1`.
+
+Construa as imagens e inicie os serviços a partir da raiz:
+
+```bash
+docker compose up --build -d
+```
+
+O Compose inicia PostgreSQL, backend e frontend. O backend executa as migrações
+do banco antes de iniciar a API. Confira os serviços e acompanhe os logs:
+
+```bash
+docker compose ps
+docker compose logs -f
+```
+
+A aplicação fica disponível em <http://localhost:5173>, a API em
+<http://localhost:8000> e a documentação interativa em
+<http://localhost:8000/docs>.
+
+O catálogo de itens não é sincronizado automaticamente ao subir os containers.
+Depois que o backend estiver em execução, inicie o worker uma única vez:
+
+```bash
+docker compose exec -d backend python -m app.jobs.sync_itens
+```
+
+Para acompanhar os serviços, use `docker compose logs -f`; para encerrar,
+execute `docker compose down`. Os dados do PostgreSQL permanecem no volume
+`postgres_data`. **Atenção:** `docker compose down -v` também remove esse volume
+e apaga os dados do banco.
+
 ## Sincronização dos itens
 
 A aplicação lista os itens a partir do banco local. Para atualizar esse catálogo,
