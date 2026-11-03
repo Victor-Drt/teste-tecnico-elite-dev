@@ -414,6 +414,15 @@ const MeusArrematesPage = () => {
                           </button>
                         </>
                       )}
+                    {bid.lote.status === "concluido" &&
+                      bid.lote.vencedor_id != null && (
+                        <Link
+                          className="my-bid-card__audit"
+                          to={`/auditoria/${bid.lote.id}`}
+                        >
+                          Ver auditoria
+                        </Link>
+                      )}
                     <button
                       className="my-bid-card__history"
                       onClick={() => openHistory(bid)}
