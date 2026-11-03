@@ -8,6 +8,7 @@
 
 services:
   backend:
+    image: elite-dev-backend:local
     build:
       context: ./backend
     restart: unless-stopped
@@ -20,8 +21,33 @@ services:
         required: false
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       postgres:
+        condition: service_healthy
+
+  sync-itens:
+    image: elite-dev-backend:local
+    command: ["python", "-m", "app.jobs.sync_itens"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-leilao_dev}"
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    depends_on:
+      backend:
         condition: service_healthy
 
   frontend:
