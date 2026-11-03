@@ -6,6 +6,7 @@
 # Derrubar mantendo os dados:     docker compose down
 # Derrubar e apagar os dados:     docker compose down -v
 
+
 services:
   backend:
     image: elite-dev-backend:local
@@ -53,6 +54,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      target: development
     restart: unless-stopped
     env_file:
       - path: .env.example
@@ -79,5 +81,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
 volumes:
   postgres_data:
