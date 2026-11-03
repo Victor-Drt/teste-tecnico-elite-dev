@@ -93,6 +93,13 @@
   scrollbar-color: #d3d1dc transparent;
 }
 
+.auction-carousel__track:has(> .auction-carousel__empty) {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 12rem;
+}
+
 .auction-card {
   background: #fff;
   border: 1px solid #eeedf2;
@@ -275,8 +282,10 @@
 
 .auction-carousel__empty {
   color: #777584;
-  grid-column: 1 / -1;
-  padding: 2rem 0;
+  margin: 0;
+  padding: 2rem 3.5rem;
+  text-align: center;
+  width: 100%;
 }
 
 @media (max-width: 760px) {

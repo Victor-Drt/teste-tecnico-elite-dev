@@ -150,6 +150,13 @@
   scrollbar-width: thin;
 }
 
+.auctioneer-lots__track:has(> .auctioneer-lots__message) {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 12rem;
+}
+
 .auctioneer-lot-card {
   background: #fff;
   border: 1px solid #eeedf2;
@@ -345,9 +352,11 @@
 
 .auctioneer-lots__message {
   color: #777584;
-  grid-column: 1 / -1;
   line-height: 1.5;
-  padding: 2rem 0;
+  margin: 0;
+  padding: 2rem 3.5rem;
+  text-align: center;
+  width: 100%;
 }
 
 .auctioneer-lots__message[role="alert"] {
