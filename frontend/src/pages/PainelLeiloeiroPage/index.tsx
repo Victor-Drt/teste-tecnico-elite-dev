@@ -65,6 +65,9 @@ function getStatusDate(lot: LoteListagem, currentTime: number): string {
     return `Encerra em ${formatTimeRemaining(new Date(lot.data_fim), currentTime)}`;
   }
   if (lot.status === "em_breve") {
+    if (new Date(lot.data_inicio).getTime() <= currentTime) {
+      return "Iniciando leilão...";
+    }
     return `Começa em ${formatTimeRemaining(new Date(lot.data_inicio), currentTime)}`;
   }
   return `${lot.status === "cancelado" ? "Cancelado em" : "Encerrado em"} ${dateTimeFormatter.format(new Date(lot.data_fim))}`;

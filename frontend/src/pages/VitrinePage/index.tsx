@@ -53,11 +53,25 @@ function getStatusLabel(status: LotStatus): string {
   }
 }
 
-function getLotStatus(status: LoteStatus): LotStatus | null {
-  if (status === "cancelado") {
+function getLotStatus(
+  lot: LoteListagem,
+  currentTime: number,
+): LotStatus | null {
+  if (lot.status === "cancelado") {
     return null;
   }
-  return status === "concluido" ? "encerrado" : status;
+  if (lot.status === "concluido") {
+    return "encerrado";
+  }
+  if (
+    lot.status === "em_breve" &&
+    new Date(lot.data_inicio).getTime() <= currentTime
+  ) {
+    return new Date(lot.data_fim).getTime() > currentTime
+      ? "ao_vivo"
+      : "encerrado";
+  }
+  return lot.status;
 }
 
 function AuctionCard({
@@ -67,7 +81,7 @@ function AuctionCard({
   lot: LoteListagem;
   currentTime: number;
 }) {
-  const status = getLotStatus(lot.status);
+  const status = getLotStatus(lot, currentTime);
   if (!status) {
     return null;
   }
@@ -187,8 +201,8 @@ const VitrinePage = () => {
   };
 
   const visibleLots = useMemo(
-    () => lots.filter((lot) => getLotStatus(lot.status) !== null),
-    [lots],
+    () => lots.filter((lot) => getLotStatus(lot, currentTime) !== null),
+    [currentTime, lots],
   );
 
   const scrollCarousel = (direction: -1 | 1) => {

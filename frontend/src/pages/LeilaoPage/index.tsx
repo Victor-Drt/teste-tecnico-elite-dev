@@ -305,6 +305,45 @@ const LeilaoPage = () => {
   }, [loteId]);
 
   useEffect(() => {
+    if (!lot || lot.status !== "em_breve") {
+      return;
+    }
+
+    let isCurrentRequest = true;
+    const refreshLotStatus = async () => {
+      if (new Date(lot.data_inicio).getTime() > Date.now()) {
+        return;
+      }
+
+      try {
+        const updatedLot = await fetchLoteVitrine(lot.id);
+        if (isCurrentRequest && updatedLot.status !== "em_breve") {
+          setPageState({
+            loteId,
+            status: "loaded",
+            lot: updatedLot,
+          });
+        }
+      } catch {
+        if (isCurrentRequest) {
+          setSocketError("Não foi possível atualizar o estado do leilão.");
+        }
+      }
+    };
+
+    const intervalId = window.setInterval(
+      () => void refreshLotStatus(),
+      1000,
+    );
+    void refreshLotStatus();
+
+    return () => {
+      isCurrentRequest = false;
+      window.clearInterval(intervalId);
+    };
+  }, [lot, loteId]);
+
+  useEffect(() => {
     if (!lot) {
       return;
     }
@@ -552,7 +591,7 @@ const LeilaoPage = () => {
             </span>
           </div>
 
-          {isLive && socketError && (
+          {socketError && (
             <p className="live-auction__connection-error" role="alert">
               {socketError}
             </p>

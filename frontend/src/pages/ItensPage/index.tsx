@@ -203,8 +203,8 @@ const ItensPage = () => {
     try {
       await createLote({
         item_id: modal.item.id,
-        data_inicio: `${startDate}:00`,
-        data_fim: `${endDate}:00`,
+        data_inicio: new Date(startDate).toISOString(),
+        data_fim: new Date(endDate).toISOString(),
         valor_inicial: startingValue.toFixed(2),
         incremento_minimo: minimumIncrement.toFixed(2),
       });
