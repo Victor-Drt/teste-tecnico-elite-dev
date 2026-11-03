@@ -42,24 +42,25 @@ Construa as imagens e inicie os serviços a partir da raiz:
 docker compose up --build -d
 ```
 
-O Compose inicia PostgreSQL, backend e frontend. O backend executa as migrações
-do banco antes de iniciar a API. Confira os serviços e acompanhe os logs:
+O Compose inicia PostgreSQL, backend, frontend e o serviço `sync-itens`. O
+backend executa as migrações do banco antes de iniciar a API; o worker só inicia
+depois que o backend responde ao healthcheck. Confira os serviços e acompanhe
+os logs:
 
 ```bash
 docker compose ps
 docker compose logs -f
 ```
 
+Para acompanhar apenas o worker de sincronização:
+
+```bash
+docker compose logs -f sync-itens
+```
+
 A aplicação fica disponível em <http://localhost:5173>, a API em
 <http://localhost:8000> e a documentação interativa em
 <http://localhost:8000/docs>.
-
-O catálogo de itens não é sincronizado automaticamente ao subir os containers.
-Depois que o backend estiver em execução, inicie o worker uma única vez:
-
-```bash
-docker compose exec -d backend python -m app.jobs.sync_itens
-```
 
 Para acompanhar os serviços, use `docker compose logs -f`; para encerrar,
 execute `docker compose down`. Os dados do PostgreSQL permanecem no volume
@@ -68,19 +69,23 @@ e apaga os dados do banco.
 
 ## Sincronização dos itens
 
-A aplicação lista os itens a partir do banco local. Para atualizar esse catálogo,
-execute o worker de sincronização separadamente do servidor FastAPI, a partir da
+A aplicação lista os itens a partir do banco local. No Docker Compose, o serviço
+`sync-itens` realiza a primeira sincronização ao iniciar e repete o processo
+conforme `SYNC_ITENS_INTERVAL_SECONDS` (900 segundos por padrão). Mantenha
+somente uma instância desse serviço para evitar sincronizações concorrentes.
+Falhas são registradas nos logs; o worker tenta novamente no próximo ciclo.
+
+Fora do Docker, execute o worker separadamente do servidor FastAPI, a partir da
 pasta `backend`:
 
 ```bash
 .venv/bin/python -m app.jobs.sync_itens
 ```
 
-O worker sincroniza as páginas da API externa ao iniciar e repete o processo a
-cada 15 minutos. O intervalo pode ser alterado pela variável
-`SYNC_ITENS_INTERVAL_SECONDS` (em segundos). Execute apenas uma instância desse
-worker por ambiente para evitar sincronizações duplicadas. Se uma sincronização
-falhar, o erro é registrado e os itens já salvos permanecem disponíveis.
+Nesse modo, o worker também sincroniza ao iniciar e repete conforme
+`SYNC_ITENS_INTERVAL_SECONDS` (em segundos). Execute apenas uma instância por
+ambiente. Se uma sincronização falhar, o erro é registrado e os itens já salvos
+permanecem disponíveis; uma nova tentativa ocorre no ciclo seguinte.
 
 ## Auditoria da cadeia de lances
 
