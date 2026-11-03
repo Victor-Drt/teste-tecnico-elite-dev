@@ -11,7 +11,11 @@ from app.services.carteiras import CarteiraService
 router = APIRouter()
 
 
-@router.post("/depositar", status_code=201)
+@router.post(
+    "/depositar",
+    status_code=201,
+    summary="Adiciona saldo à carteira do usuário",
+)
 def depositar_valor(
     deposito: CarteiraDeposito,
     usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
@@ -28,7 +32,7 @@ def depositar_valor(
         ) from exc
 
 
-@router.get("/minha")
+@router.get("/minha", summary="Consulta a carteira do usuário")
 def buscar_carteira(
     usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
     db: Session = Depends(get_db),

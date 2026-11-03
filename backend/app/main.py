@@ -43,6 +43,6 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api/v1")
 
 
-@app.get("/")
+@app.get("/", summary="Verifica a disponibilidade da API")
 def root():
     return {"status": "OK"}

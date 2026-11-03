@@ -19,7 +19,12 @@ from app.api.v1.websockets.leiloes import notificar_lance_criado
 router = APIRouter()
 
 
-@router.get("/meus", status_code=200, response_model=MeuLancePagina)
+@router.get(
+    "/meus",
+    status_code=200,
+    response_model=MeuLancePagina,
+    summary="Lista os lances do usuário autenticado",
+)
 def listar_meus_lances(
     usuario_atual: Annotated[
         UsuarioResponse, Depends(verificar_role("licitante"))
@@ -41,6 +46,7 @@ def listar_meus_lances(
     "/lotes/{lote_id}",
     status_code=200,
     response_model=list[LancePublico],
+    summary="Lista os lances públicos de um lote",
 )
 def listar_lances(
     lote_id: int,
@@ -55,6 +61,7 @@ def listar_lances(
     "/lotes/{lote_id}/historico",
     status_code=200,
     response_model=HistoricoLancesPagina,
+    summary="Consulta o histórico de lances do lote",
 )
 def listar_historico_lances(
     lote_id: int,
@@ -71,7 +78,11 @@ def listar_historico_lances(
     )
 
 
-@router.get("/{lance_id}", status_code=200)
+@router.get(
+    "/{lance_id}",
+    status_code=200,
+    summary="Consulta um lance do usuário autenticado",
+)
 def buscar_lance(
     lance_id: int,
     usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
@@ -88,7 +99,12 @@ def buscar_lance(
         ) from exc
 
 
-@router.post("/", status_code=201, response_model=LancePublico)
+@router.post(
+    "/",
+    status_code=201,
+    response_model=LancePublico,
+    summary="Registra um lance no lote",
+)
 async def criar_lance(
     data: LanceCreate,
     usuario_atual: Annotated[UsuarioResponse, Depends(verificar_role("licitante"))],

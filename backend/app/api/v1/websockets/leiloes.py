@@ -131,6 +131,7 @@ async def sala_de_leilao(
     usuario: Annotated[UsuarioResponse, Depends(autenticar_websocket)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    """Transmite o estado e as atualizações do leilão ao vivo."""
     try:
         lote = LoteService(db).buscar_lote_ao_vivo(lote_id)
     except ValueError:

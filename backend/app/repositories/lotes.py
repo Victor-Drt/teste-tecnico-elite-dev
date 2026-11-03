@@ -83,6 +83,27 @@ def buscar_comprovante_arremate(
     )
 
 
+def ativar_lotes_agendados(
+    db: Session, agora: datetime, limite: int = 100
+) -> list[int]:
+    lotes = (
+        db.query(Lote)
+        .filter(
+            Lote.status == StatusLote.EM_BREVE,
+            Lote.data_inicio <= agora,
+        )
+        .order_by(Lote.data_inicio, Lote.id)
+        .limit(limite)
+        .with_for_update(skip_locked=True)
+        .all()
+    )
+    lote_ids = [lote.id for lote in lotes]
+    for lote in lotes:
+        lote.status = StatusLote.AO_VIVO
+    db.commit()
+    return lote_ids
+
+
 def listar_lotes_expirados(
     db: Session, agora: datetime, limite: int = 100
 ) -> list[int]:

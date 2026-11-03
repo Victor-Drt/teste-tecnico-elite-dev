@@ -10,7 +10,7 @@ from app.core.config import settings
 router = APIRouter()
 
 
-@router.post("/token")
+@router.post("/token", summary="Autentica e cria a sessão do usuário")
 async def login_for_access_token(
     data: LoginRequest,
     response: Response,
@@ -39,7 +39,7 @@ async def login_for_access_token(
         )
 
 
-@router.post("/logout")
+@router.post("/logout", summary="Encerra a sessão do usuário")
 async def logout(response: Response):
     response.delete_cookie(
         key="access_token",

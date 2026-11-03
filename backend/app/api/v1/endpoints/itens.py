@@ -12,7 +12,11 @@ from app.schemas.itens import ItemResumo, ItemDetalhesResponse
 router = APIRouter()
 
 
-@router.get("/{item_id}/imagem", response_class=Response)
+@router.get(
+    "/{item_id}/imagem",
+    response_class=Response,
+    summary="Obtém a imagem de um item",
+)
 async def obter_imagem_item(
     item_id: int,
     db: Session = Depends(get_db),
@@ -39,7 +43,7 @@ async def obter_imagem_item(
     )
 
 
-@router.get("/", status_code=200)
+@router.get("/", status_code=200, summary="Lista e pesquisa itens do catálogo")
 def listar_itens(
     usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
     db: Session = Depends(get_db),
@@ -53,7 +57,11 @@ def listar_itens(
     return itens
 
 
-@router.get("/{item_id}", status_code=200)
+@router.get(
+    "/{item_id}",
+    status_code=200,
+    summary="Consulta os detalhes de um item",
+)
 def buscar_item(
     item_id: int,
     usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],

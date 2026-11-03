@@ -10,7 +10,11 @@ from app.api.v1.deps import get_current_user
 router = APIRouter()
 
 
-@router.post("/criar", status_code=201)
+@router.post(
+    "/criar",
+    status_code=201,
+    summary="Cadastra um novo usuário",
+)
 def criar_usuario(
     data: UsuarioCreate, db: Session = Depends(get_db)
 ) -> UsuarioResponse:
@@ -25,7 +29,11 @@ def criar_usuario(
         )
 
 
-@router.get("/perfil", status_code=200)
+@router.get(
+    "/perfil",
+    status_code=200,
+    summary="Consulta o perfil do usuário autenticado",
+)
 def perfil(
     usuario_atual: Annotated[UsuarioResponse, Depends(get_current_user)],
 ) -> UsuarioResponse:

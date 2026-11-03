@@ -25,7 +25,11 @@ from app.services.lotes import (
 router = APIRouter()
 
 
-@router.post("/", status_code=201)
+@router.post(
+    "/",
+    status_code=201,
+    summary="Cria um lote de leilão",
+)
 def criar_lote(
     data: LoteCreate,
     usuario_atual: Annotated[
@@ -43,7 +47,7 @@ def criar_lote(
     return service.criar_lote(usuario_atual.id, data)
 
 
-@router.get("/", status_code=200)
+@router.get("/", status_code=200, summary="Lista lotes disponíveis")
 def listar_lotes(
     usuario_atual: Annotated[
         UsuarioResponse,
@@ -59,7 +63,11 @@ def listar_lotes(
     return service.listar_lotes(usuario_atual, offset, limit, status_lote)
 
 
-@router.get("/arremates", status_code=200)
+@router.get(
+    "/arremates",
+    status_code=200,
+    summary="Lista os lotes arrematados pelo usuário",
+)
 def listar_arremates(
     usuario_atual: Annotated[
         UsuarioResponse,
@@ -76,6 +84,7 @@ def listar_arremates(
     "/{lote_id}/vitrine",
     status_code=200,
     response_model=LoteVitrineResponse,
+    summary="Consulta os dados de um lote para o leilão ao vivo",
 )
 def buscar_lote_para_vitrine(
     lote_id: int,
@@ -100,6 +109,7 @@ def buscar_lote_para_vitrine(
     "/{lote_id}/auditoria",
     status_code=200,
     response_model=AuditoriaPublicaResponse,
+    summary="Verifica e consulta a auditoria pública do lote",
 )
 def buscar_auditoria_publica(
     lote_id: int,
@@ -125,6 +135,7 @@ def buscar_auditoria_publica(
     "/{lote_id}/comprovante",
     status_code=200,
     response_model=ComprovanteArremateResponse,
+    summary="Consulta o comprovante de arremate do vencedor",
 )
 def buscar_comprovante_arremate(
     lote_id: int,
@@ -149,7 +160,11 @@ def buscar_comprovante_arremate(
         ) from exc
 
 
-@router.get("/{lote_id}", status_code=200)
+@router.get(
+    "/{lote_id}",
+    status_code=200,
+    summary="Consulta os detalhes de um lote",
+)
 def listar_lote_por_id(
     lote_id: int,
     usuario_atual: Annotated[
@@ -173,7 +188,11 @@ def listar_lote_por_id(
         ) from exc
 
 
-@router.patch("/{lote_id}", status_code=200)
+@router.patch(
+    "/{lote_id}",
+    status_code=200,
+    summary="Atualiza os dados de um lote",
+)
 def atualizar_lote(
     lote_id: int,
     data: LoteUpdate,
@@ -203,7 +222,11 @@ def atualizar_lote(
         ) from exc
 
 
-@router.delete("/{lote_id}", status_code=204)
+@router.delete(
+    "/{lote_id}",
+    status_code=204,
+    summary="Remove um lote sem lances",
+)
 def deletar_lote(
     lote_id: int,
     usuario_atual: Annotated[
