@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { IoChevronDownOutline, IoWalletOutline } from "react-icons/io5";
-import type { User } from "../../types/usuarios";
-import type { Wallet } from "../../types/carteiras";
+import { useCarteira } from "../../context/useCarteira";
 import { logout } from "../../services/auth";
-import { fetchWallet } from "../../services/carteiras";
+import type { User } from "../../types/usuarios";
 import "./styles.css";
 
 interface NavbarProps {
@@ -27,34 +26,10 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
 
 const Navbar = ({ user }: NavbarProps) => {
   const navigate = useNavigate();
+  const { wallet, isLoading, loadError } = useCarteira();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [walletError, setWalletError] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
-
-  useEffect(() => {
-    if (user.papel !== "licitante") {
-      return;
-    }
-
-    let isCurrent = true;
-    fetchWallet()
-      .then((userWallet) => {
-        if (isCurrent) {
-          setWallet(userWallet);
-        }
-      })
-      .catch(() => {
-        if (isCurrent) {
-          setWalletError(true);
-        }
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [user.papel]);
 
   const handleLogout = async () => {
     setLogoutError("");
@@ -166,9 +141,11 @@ const Navbar = ({ user }: NavbarProps) => {
                 <strong>
                   {wallet
                     ? currencyFormatter.format(Number(wallet.saldo_disponivel))
-                    : walletError
+                    : loadError
                       ? "Indisponível"
-                      : "Carregando..."}
+                      : isLoading
+                        ? "Carregando..."
+                        : "Indisponível"}
                 </strong>
               </div>
             )}

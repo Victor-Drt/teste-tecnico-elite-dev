@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import axios from "axios";
 import { Link, useParams } from "react-router";
@@ -7,6 +7,7 @@ import {
   IoPeopleOutline,
   IoTimeOutline,
 } from "react-icons/io5";
+import { useCarteira } from "../../context/useCarteira";
 import { criarLance, getSalaLeilaoWebSocketUrl } from "../../services/lances";
 import { fetchLoteVitrine } from "../../services/lotes";
 import { getItemImageUrl } from "../../services/itens";
@@ -222,6 +223,8 @@ function getAuctionAvailabilityMessage(
 
 const LeilaoPage = () => {
   const { loteId = "" } = useParams();
+  const { refreshWallet } = useCarteira();
+  const refreshWalletRef = useRef(refreshWallet);
   const [pageState, setPageState] = useState<PageState>({
     loteId: "",
     status: "loading",
@@ -234,6 +237,10 @@ const LeilaoPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bidError, setBidError] = useState("");
   const [currentTime, setCurrentTime] = useState(initialTime);
+
+  useEffect(() => {
+    refreshWalletRef.current = refreshWallet;
+  }, [refreshWallet]);
 
   const isCurrentPage = pageState.loteId === loteId;
   const lot =
@@ -397,12 +404,19 @@ const LeilaoPage = () => {
               (participant) =>
                 participant.participante === current.participanteUsuario,
             );
+            const nextSituacao = currentParticipant?.situacao ?? "sem_lance";
+            if (
+              current.situacaoUsuario === "ganhando" &&
+              nextSituacao !== "ganhando"
+            ) {
+              void refreshWalletRef.current();
+            }
             return {
               ...current,
               lances: sortHistory([...existing, message.lance]),
               lanceAtual: message.lance_atual,
               participantes: message.participantes,
-              situacaoUsuario: currentParticipant?.situacao ?? "sem_lance",
+              situacaoUsuario: nextSituacao,
               valorAtual: message.valor_atual,
               dataFim: message.data_fim,
             };
@@ -507,6 +521,7 @@ const LeilaoPage = () => {
       setBidValue(
         (amount + Number(lot.incremento_minimo)).toFixed(2),
       );
+      void refreshWallet();
     } catch (error) {
       setBidError(getBidErrorMessage(error));
     } finally {

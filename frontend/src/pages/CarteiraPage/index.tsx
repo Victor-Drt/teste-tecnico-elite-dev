@@ -1,8 +1,8 @@
 import axios from "axios";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import walletIllustration from "../../assets/carteira_wallet_diag.svg";
-import { depositToWallet, fetchWallet } from "../../services/carteiras";
-import type { Wallet } from "../../types/carteiras";
+import { useCarteira } from "../../context/useCarteira";
+import { depositToWallet } from "../../services/carteiras";
 import "./styles.css";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -21,37 +21,11 @@ function getErrorMessage(error: unknown): string {
 }
 
 const CarteiraPage = () => {
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const { wallet, isLoading, loadError, setWallet } = useCarteira();
   const [depositAmount, setDepositAmount] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [isDepositing, setIsDepositing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
-  useEffect(() => {
-    let isCurrent = true;
-
-    fetchWallet()
-      .then((userWallet) => {
-        if (isCurrent) {
-          setWallet(userWallet);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isCurrent) {
-          setErrorMessage(getErrorMessage(error));
-        }
-      })
-      .finally(() => {
-        if (isCurrent) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
 
   const handleDeposit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -88,9 +62,9 @@ const CarteiraPage = () => {
             <p className="wallet-page__message" role="status">
               Carregando saldo...
             </p>
-          ) : errorMessage && !wallet ? (
+          ) : loadError && !wallet ? (
             <p className="wallet-page__error" role="alert">
-              {errorMessage}
+              {loadError}
             </p>
           ) : wallet ? (
             <>
