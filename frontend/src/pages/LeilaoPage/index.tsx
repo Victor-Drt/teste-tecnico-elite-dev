@@ -201,6 +201,25 @@ function getRoomStatusLabel(status: RoomState["situacaoUsuario"]): string {
   }
 }
 
+function getAuctionAvailabilityMessage(
+  lot: LoteVitrine,
+  currentTime: number,
+): string {
+  if (lot.status === "cancelado") {
+    return "Este lote foi cancelado.";
+  }
+  if (lot.status === "concluido") {
+    return "Este leilão já foi encerrado.";
+  }
+  if (new Date(lot.data_inicio).getTime() > currentTime) {
+    return "Este leilão ainda não começou.";
+  }
+  if (lot.status === "em_breve") {
+    return "Este leilão está aguardando o início.";
+  }
+  return "Este leilão já foi encerrado.";
+}
+
 const LeilaoPage = () => {
   const { loteId = "" } = useParams();
   const [pageState, setPageState] = useState<PageState>({
@@ -219,6 +238,21 @@ const LeilaoPage = () => {
   const isCurrentPage = pageState.loteId === loteId;
   const lot =
     isCurrentPage && pageState.status === "loaded" ? pageState.lot : null;
+  const activeRoom =
+    lot && room?.loteId === lot.id ? room : null;
+  const endTime = new Date(activeRoom?.dataFim ?? lot?.data_fim ?? 0);
+  const startTime = new Date(lot?.data_inicio ?? 0);
+  const isUpcoming =
+    lot !== null &&
+    lot.status !== "concluido" &&
+    lot.status !== "cancelado" &&
+    startTime.getTime() > currentTime;
+  const isLotLive =
+    lot !== null &&
+    lot.status === "ao_vivo" &&
+    startTime.getTime() <= currentTime &&
+    endTime.getTime() > currentTime;
+  const currentSocketStatus = isLotLive ? socketStatus : "disconnected";
   const isLoading = !isCurrentPage || pageState.status === "loading";
   const pageError =
     isCurrentPage && pageState.status === "error" ? pageState.message : "";
@@ -272,6 +306,10 @@ const LeilaoPage = () => {
 
   useEffect(() => {
     if (!lot) {
+      return;
+    }
+
+    if (!isLotLive) {
       return;
     }
 
@@ -363,7 +401,7 @@ const LeilaoPage = () => {
       isCurrentSocket = false;
       socket.close(1000);
     };
-  }, [lot]);
+  }, [isLotLive, lot]);
 
   useEffect(() => {
     const timerId = window.setInterval(
@@ -460,9 +498,7 @@ const LeilaoPage = () => {
     );
   }
 
-  const activeRoom = room?.loteId === lot.id ? room : null;
-  const endTime = new Date(activeRoom?.dataFim ?? lot.data_fim);
-  const isLive = lot.status === "ao_vivo" && endTime.getTime() > currentTime;
+  const isLive = isLotLive && endTime.getTime() > currentTime;
   const currentValue = activeRoom?.valorAtual ?? lot.valor_atual;
   const minimumBid = Number(currentValue) + Number(lot.incremento_minimo);
   const history = activeRoom?.lances ?? [];
@@ -502,19 +538,28 @@ const LeilaoPage = () => {
             >
               {activeRoom
                 ? getRoomStatusLabel(activeRoom.situacaoUsuario)
-                : "Conectando..."}
+                : isUpcoming
+                  ? "O leilão ainda não começou"
+                  : lot.status === "em_breve"
+                    ? "Aguardando início"
+                    : "Conectando..."}
             </span>
             <span
               className={`live-auction__live-badge${isLive ? "" : " is-closed"}`}
             >
               <span aria-hidden="true">•</span>{" "}
-              {isLive ? "Ao Vivo" : "Encerrado"}
+              {isLive ? "Ao Vivo" : isUpcoming ? "Em breve" : "Encerrado"}
             </span>
           </div>
 
-          {socketError && (
+          {isLive && socketError && (
             <p className="live-auction__connection-error" role="alert">
               {socketError}
+            </p>
+          )}
+          {!isLive && (
+            <p className="live-auction__socket-status" role="status">
+              {getAuctionAvailabilityMessage(lot, currentTime)}
             </p>
           )}
 
@@ -530,12 +575,16 @@ const LeilaoPage = () => {
 
           <div className="live-auction__stats">
             <div className="live-auction__stat">
-              <span>Tempo restante</span>
+              <span>{isUpcoming ? "Começa em" : "Tempo restante"}</span>
               <strong className={isLive ? "is-live" : ""}>
                 <IoTimeOutline aria-hidden="true" />
-                {isLive
-                  ? formatCountdown(endTime, currentTime)
-                  : "Leilão encerrado"}
+                {isUpcoming
+                  ? formatCountdown(startTime, currentTime)
+                  : isLive
+                    ? formatCountdown(endTime, currentTime)
+                    : lot.status === "em_breve"
+                      ? "Aguardando início"
+                      : "Leilão encerrado"}
               </strong>
             </div>
             <div className="live-auction__stat">
@@ -571,7 +620,7 @@ const LeilaoPage = () => {
               disabled={
                 !isLive ||
                 !activeRoom ||
-                socketStatus !== "connected" ||
+                currentSocketStatus !== "connected" ||
                 isSubmitting
               }
               type="submit"
@@ -579,14 +628,20 @@ const LeilaoPage = () => {
               {isSubmitting
                 ? "Registrando lance..."
                 : !isLive
-                  ? "Leilão encerrado"
+                  ? isUpcoming
+                    ? "Leilão ainda não começou"
+                    : lot.status === "em_breve"
+                      ? "Aguardando início"
+                      : "Leilão encerrado"
                   : "Dar Lance"}
             </button>
-            {socketStatus === "disconnected" && !socketError && (
+            {isLive &&
+              currentSocketStatus === "disconnected" &&
+              !socketError && (
               <small className="live-auction__socket-status">
                 Reconecte à sala para continuar dando lances.
               </small>
-            )}
+              )}
           </form>
 
           <section
@@ -594,7 +649,7 @@ const LeilaoPage = () => {
             className="bid-history"
           >
             <h2 id="live-auction-history-title">Histórico de lances</h2>
-            {socketStatus === "connecting" && !activeRoom ? (
+            {currentSocketStatus === "connecting" && !activeRoom ? (
               <p className="bid-history__empty">Conectando ao histórico...</p>
             ) : history.length > 0 ? (
               <ol className="bid-history__list">
