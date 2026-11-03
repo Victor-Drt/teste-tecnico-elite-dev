@@ -12,6 +12,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import validar_usuario
+from app.core.time import to_utc_datetime
 from app.db.session import get_db
 from app.schemas.lances import LancePublico, LanceResumo
 from app.schemas.usuarios import UsuarioResponse
@@ -104,7 +105,7 @@ async def notificar_lance_criado(
             "lance": _lance_para_json(lance, aliases),
             "lance_atual": _lance_para_json(lance_atual, aliases),
             "valor_atual": str(lote.valor_atual),
-            "data_fim": lote.data_fim.isoformat(),
+            "data_fim": to_utc_datetime(lote.data_fim).isoformat(),
             "participantes": participantes,
         },
     )
@@ -146,7 +147,7 @@ async def sala_de_leilao(
         "lote": {
             "id": lote.id,
             "status": lote.status.value,
-            "data_fim": lote.data_fim.isoformat(),
+            "data_fim": to_utc_datetime(lote.data_fim).isoformat(),
             "valor_atual": str(lote.valor_atual),
         },
         "lance_atual": _lance_para_json(

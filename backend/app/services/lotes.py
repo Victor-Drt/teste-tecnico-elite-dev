@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.core.time import utc_now_naive
 from app.models.carteiras import Carteira
 from app.models.lances import Lance
 from app.models.liquidacoes import LiquidacaoLote
@@ -231,7 +232,7 @@ class LoteService:
     def encerrar_lote_expirado(
         self, lote_id: int, agora: datetime | None = None
     ) -> ResultadoEncerramento | None:
-        agora = agora or datetime.now()
+        agora = agora or utc_now_naive()
 
         try:
             lote = repository.buscar_lote_expirado_para_encerramento(

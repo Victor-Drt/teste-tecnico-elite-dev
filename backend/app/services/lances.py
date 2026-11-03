@@ -7,6 +7,7 @@ from app.repositories import (
     lotes as lote_repository,
     carteiras as carteira_repository,
 )
+from app.core.time import utc_now_naive
 from app.schemas.lances import (
     CategoriaMeusLances,
     HistoricoLancesPagina,
@@ -138,7 +139,7 @@ class LanceService:
         if lote is None:
             raise ValueError("Lote não encontrado.")
 
-        agora = datetime.now()
+        agora = utc_now_naive()
 
         if (
             lote.status in (StatusLote.CONCLUIDO, StatusLote.CANCELADO)
@@ -226,7 +227,7 @@ class LanceService:
         if maior_lance is not None and carteira_lance_anterior is None:
             raise ValueError("Carteira do licitante anterior não encontrada")
 
-        agora = datetime.now()
+        agora = utc_now_naive()
         if lote.data_fim <= agora:
             raise ValueError(
                 "Este leilão já foi encerrado e não aceita novos lances."

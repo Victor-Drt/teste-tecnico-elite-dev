@@ -1,8 +1,9 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 from decimal import Decimal
 from enum import Enum
 
+from app.core.time import to_utc_datetime
 from app.schemas.lotes import LoteListagemResponse
 
 
@@ -20,6 +21,10 @@ class LanceResumo(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @field_serializer("data_criacao", when_used="json")
+    def serializar_data_em_utc(self, value: datetime) -> str:
+        return to_utc_datetime(value).isoformat()
+
 
 class LancePublico(BaseModel):
     id: int
@@ -27,6 +32,10 @@ class LancePublico(BaseModel):
     lote_id: int
     valor: Decimal
     data_criacao: datetime
+
+    @field_serializer("data_criacao", when_used="json")
+    def serializar_data_em_utc(self, value: datetime) -> str:
+        return to_utc_datetime(value).isoformat()
 
 
 class CategoriaMeusLances(str, Enum):
@@ -57,6 +66,10 @@ class LanceHistoricoItem(BaseModel):
     valor: Decimal
     data_criacao: datetime
     eh_usuario_atual: bool
+
+    @field_serializer("data_criacao", when_used="json")
+    def serializar_data_em_utc(self, value: datetime) -> str:
+        return to_utc_datetime(value).isoformat()
 
 
 class HistoricoLancesPagina(BaseModel):
