@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from app.models.lances import Lance
@@ -35,6 +37,33 @@ def test_deve_cadastrar_lote_com_sucesso_para_leiloeiro(
     lote_salvo = db_session.query(Lote).one()
     assert lote_salvo.item_id == item.id
     assert lote_salvo.leiloeiro_id == response.json()["leiloeiro_id"]
+
+
+@pytest.mark.lotes
+def test_deve_normalizar_horario_local_do_lote_para_utc(
+    client, cabecalho_autenticado, itens_catalogo_teste, db_session
+):
+    payload = {
+        "item_id": itens_catalogo_teste[0].id,
+        "data_inicio": "2030-01-01T10:00:00-04:00",
+        "data_fim": "2030-01-01T12:00:00-04:00",
+        "valor_inicial": 100.00,
+        "incremento_minimo": 10.00,
+    }
+
+    response = client.post(
+        "/api/v1/lotes/",
+        json=payload,
+        headers=cabecalho_autenticado,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["data_inicio"] == "2030-01-01T14:00:00+00:00"
+    assert response.json()["data_fim"] == "2030-01-01T16:00:00+00:00"
+
+    lote_salvo = db_session.query(Lote).one()
+    assert lote_salvo.data_inicio == datetime(2030, 1, 1, 14)
+    assert lote_salvo.data_fim == datetime(2030, 1, 1, 16)
 
 
 @pytest.mark.lotes
@@ -92,8 +121,8 @@ def test_deve_retornar_resumos_dos_lotes_quando_leiloeiro_autorizado(
         {
             "id": lote_teste.id,
             "item_id": lote_teste.item_id,
-            "data_inicio": lote_teste.data_inicio.isoformat(),
-            "data_fim": lote_teste.data_fim.isoformat(),
+            "data_inicio": f"{lote_teste.data_inicio.isoformat()}+00:00",
+            "data_fim": f"{lote_teste.data_fim.isoformat()}+00:00",
             "valor_atual": "100.00",
             "status": lote_teste.status.value,
             "vencedor_id": lote_teste.vencedor_id,
@@ -289,8 +318,8 @@ def test_deve_atualizar_lote_quando_leiloeiro_tiver_permissao(
     assert response.status_code == 200
     assert response.json()["id"] == lote_teste.id
     assert response.json()["item_id"] == item_atualizado.id
-    assert response.json()["data_inicio"] == "2031-02-01T10:00:00"
-    assert response.json()["data_fim"] == "2031-02-01T12:00:00"
+    assert response.json()["data_inicio"] == "2031-02-01T10:00:00+00:00"
+    assert response.json()["data_fim"] == "2031-02-01T12:00:00+00:00"
     assert response.json()["valor_atual"] == "100.00"
 
     db_session.refresh(lote_teste)
@@ -539,9 +568,9 @@ def test_comprovante_arremate_disponivel_apenas_para_o_vencedor(
             ),
         },
         "valor": "125.00",
-        "data_inicio": lote_teste.data_inicio.isoformat(),
-        "data_fim": lote_teste.data_fim.isoformat(),
-        "data_liquidacao": liquidacao.data_liquidacao.isoformat(),
+        "data_inicio": f"{lote_teste.data_inicio.isoformat()}+00:00",
+        "data_fim": f"{lote_teste.data_fim.isoformat()}+00:00",
+        "data_liquidacao": f"{liquidacao.data_liquidacao.isoformat()}+00:00",
     }
 
     response_nao_autorizada = client.get(
@@ -641,8 +670,8 @@ def test_deve_listar_arremates_concluidos_do_usuario_autenticado(
         {
             "id": lote_teste.id,
             "item_id": lote_teste.item_id,
-            "data_inicio": lote_teste.data_inicio.isoformat(),
-            "data_fim": lote_teste.data_fim.isoformat(),
+            "data_inicio": f"{lote_teste.data_inicio.isoformat()}+00:00",
+            "data_fim": f"{lote_teste.data_fim.isoformat()}+00:00",
             "valor_atual": "100.00",
             "status": StatusLote.CONCLUIDO.value,
             "vencedor_id": usuario_licitante.id,

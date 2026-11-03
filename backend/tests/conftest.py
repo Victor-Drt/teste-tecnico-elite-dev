@@ -244,10 +244,12 @@ def lote_teste(db_session: Session, itens_catalogo_teste, usuario_teste):
 
 @pytest.fixture
 def lote_ao_vivo(db_session: Session, itens_catalogo_teste, usuario_teste):
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
+    from app.core.time import utc_now_naive
     from app.models.lotes import Lote, StatusLote
 
+    agora = utc_now_naive()
     lote = Lote(
         item_id=itens_catalogo_teste[0].id,
         leiloeiro_id=usuario_teste.id,
@@ -255,8 +257,8 @@ def lote_ao_vivo(db_session: Session, itens_catalogo_teste, usuario_teste):
         valor_atual=100,
         incremento_minimo=10,
         status=StatusLote.AO_VIVO,
-        data_inicio=datetime.now() - timedelta(hours=1),
-        data_fim=datetime.now() + timedelta(hours=1),
+        data_inicio=agora - timedelta(hours=1),
+        data_fim=agora + timedelta(hours=1),
     )
     db_session.add(lote)
     db_session.commit()

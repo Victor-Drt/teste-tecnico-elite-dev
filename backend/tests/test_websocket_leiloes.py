@@ -7,6 +7,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from app.models.lances import Lance
 from app.models.lotes import StatusLote
+from app.core.time import utc_now_naive
 from app.websockets.manage import ConnectionManager
 
 
@@ -65,7 +66,7 @@ def test_sala_websocket_entrega_estado_inicial_do_lote(
     db_session.add_all([lance_anterior, lance_atual])
     db_session.commit()
     lote_id = lote_ao_vivo.id
-    data_fim = lote_ao_vivo.data_fim.isoformat()
+    data_fim = f"{lote_ao_vivo.data_fim.isoformat()}+00:00"
     lance_anterior_id = lance_anterior.id
     lance_atual_id = lance_atual.id
 
@@ -131,7 +132,7 @@ def test_novo_lance_e_transmitido_aos_usuarios_conectados_na_sala(
         valor=120,
     )
     lote_ao_vivo.valor_atual = Decimal("120.00")
-    lote_ao_vivo.data_fim = datetime.now() + timedelta(seconds=90)
+    lote_ao_vivo.data_fim = utc_now_naive() + timedelta(seconds=90)
     carteira_licitante.saldo_comprometido = Decimal("120.00")
     db_session.add(lance_anterior)
     db_session.commit()
@@ -170,7 +171,7 @@ def test_novo_lance_e_transmitido_aos_usuarios_conectados_na_sala(
         assert evento["lance"]["valor"] == "131.00"
         assert evento["lance_atual"]["valor"] == "131.00"
         assert evento["valor_atual"] == "131.00"
-        assert evento["data_fim"] == data_fim_esperada.isoformat()
+        assert evento["data_fim"] == f"{data_fim_esperada.isoformat()}+00:00"
         assert evento["participantes"] == [
             {
                 "participante": "Participante #2",

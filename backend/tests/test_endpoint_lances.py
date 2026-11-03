@@ -5,6 +5,7 @@ import pytest
 
 from app.models.lances import Lance
 from app.models.lotes import StatusLote
+from app.core.time import utc_now_naive
 
 
 @pytest.mark.lances
@@ -63,7 +64,7 @@ def test_deve_criar_lance_e_comprometer_saldo_quando_dados_validos(
 def test_deve_estender_leilao_quando_lance_ocorrer_nos_dois_minutos_finais(
     client, cabecalho_licitante, lote_ao_vivo, carteira_licitante, db_session
 ):
-    data_fim_original = datetime.now() + timedelta(seconds=90)
+    data_fim_original = utc_now_naive() + timedelta(seconds=90)
     lote_ao_vivo.data_fim = data_fim_original
     db_session.commit()
 
@@ -146,7 +147,7 @@ def test_deve_rejeitar_lance_quando_lote_ainda_nao_comecou(
 def test_deve_rejeitar_lance_quando_data_de_inicio_ainda_nao_chegou(
     client, cabecalho_licitante, lote_ao_vivo, carteira_licitante, db_session
 ):
-    lote_ao_vivo.data_inicio = datetime.now() + timedelta(minutes=1)
+    lote_ao_vivo.data_inicio = utc_now_naive() + timedelta(minutes=1)
     db_session.commit()
 
     response = client.post(

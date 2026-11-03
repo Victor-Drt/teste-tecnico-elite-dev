@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -6,11 +6,45 @@ import pytest
 from app.models.carteiras import Carteira
 from app.models.lances import Lance
 from app.models.liquidacoes import LiquidacaoLote
-from app.models.lotes import StatusLote
+from app.models.lotes import Lote, StatusLote
+from app.core.time import utc_now_naive
+from app.repositories.lotes import ativar_lotes_agendados
 from app.schemas.lances import LanceCreate
 from app.schemas.usuarios import UsuarioResponse
 from app.services.lances import LanceService
 from app.services.lotes import LoteService
+
+
+@pytest.mark.lotes
+def test_ativar_lotes_agendados_muda_status_apenas_quando_chega_o_inicio(
+    lote_teste,
+    itens_catalogo_teste,
+    usuario_teste,
+    db_session,
+):
+    agora = utc_now_naive()
+    lote_teste.data_inicio = agora - timedelta(seconds=1)
+    lote_teste.data_fim = agora + timedelta(hours=1)
+    lote_futuro = Lote(
+        item_id=itens_catalogo_teste[1].id,
+        leiloeiro_id=usuario_teste.id,
+        valor_inicial=200,
+        valor_atual=200,
+        incremento_minimo=20,
+        data_inicio=agora + timedelta(hours=1),
+        data_fim=agora + timedelta(hours=2),
+    )
+    db_session.add(lote_futuro)
+    db_session.commit()
+    db_session.refresh(lote_futuro)
+
+    ativados = ativar_lotes_agendados(db_session, agora)
+
+    db_session.refresh(lote_teste)
+    db_session.refresh(lote_futuro)
+    assert ativados == [lote_teste.id]
+    assert lote_teste.status == StatusLote.AO_VIVO
+    assert lote_futuro.status == StatusLote.EM_BREVE
 
 
 @pytest.mark.lotes
@@ -34,7 +68,7 @@ def test_encerrar_lote_expirado_liquida_lance_vencedor_uma_unica_vez(
         LanceCreate(lote_id=lote_ao_vivo.id, valor=Decimal("150.00")),
     )
     lance = db_session.query(Lance).filter(Lance.id == lance_resumo.id).one()
-    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
+    lote_ao_vivo.data_fim = utc_now_naive() - timedelta(seconds=1)
     db_session.commit()
 
     resultado = LoteService(db_session).encerrar_lote_expirado(lote_ao_vivo.id)
@@ -106,7 +140,7 @@ def test_encerrar_lote_expirado_sem_lances_conclui_sem_transferencia(
     usuario_teste,
     db_session,
 ):
-    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
+    lote_ao_vivo.data_fim = utc_now_naive() - timedelta(seconds=1)
     valor_inicial = lote_ao_vivo.valor_atual
     carteira_leiloeiro = Carteira(
         usuario_id=usuario_teste.id,
@@ -158,7 +192,7 @@ def test_nao_concluir_lote_se_reserva_do_vencedor_estiver_inconsistente(
     carteira_licitante,
     db_session,
 ):
-    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
+    lote_ao_vivo.data_fim = utc_now_naive() - timedelta(seconds=1)
     lote_ao_vivo.valor_atual = Decimal("150.00")
     carteira_licitante.saldo_comprometido = Decimal("0.00")
     db_session.add(
@@ -188,7 +222,7 @@ def test_nao_liquidar_lote_se_carteira_do_vencedor_nao_existir(
     usuario_licitante,
     db_session,
 ):
-    lote_ao_vivo.data_fim = datetime.now() - timedelta(seconds=1)
+    lote_ao_vivo.data_fim = utc_now_naive() - timedelta(seconds=1)
     lote_ao_vivo.valor_atual = Decimal("150.00")
     db_session.add(
         Lance(
@@ -267,7 +301,7 @@ def test_auditoria_detecta_adulteracoes_no_historico_ancorado(
                 licitante_id=usuario_licitante.id,
                 lote_id=lote_ao_vivo.id,
                 valor=Decimal("110.00"),
-                data_criacao=datetime.now(),
+                data_criacao=utc_now_naive(),
             )
         )
     db_session.commit()
